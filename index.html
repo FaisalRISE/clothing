@@ -515,8 +515,6 @@ tr.rowlink:hover { background: #faf7f0; }
 }
 .panel { display: none; }
 .panel.on { display: block; }
-.all-view .panel { display: block !important; margin-bottom: 18px; }
-.all-view #panel-summary { display: block !important; }
 
 /* Measurement rows */
 .mrow {
@@ -1256,11 +1254,15 @@ tr.rowlink:hover { background: #faf7f0; }
 .main { width: 100%; }
 .clientbar .cell { flex-wrap: wrap; max-width: 100%; }
 .clientbar input, .clientbar select { max-width: 100%; }
-.measurement-sections > #panel-lower, .measurement-sections > #panel-shirt,
-.measurement-sections > #panel-upper, .measurement-sections > #panel-wbs { display: block; margin-bottom: 18px; }
-@media screen {
-  .measurement-sections > .panel.irrelevant { display: none !important; }
-}
+.clientbar .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.measurement-sections > .panel.on { margin-bottom: 18px; }
+.measurement-view { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.measurement-view select, .picker-search { padding: 8px; border: 1px solid var(--line-2); border-radius: var(--radius); background: white; }
+.picker-search { width: 100%; }
+.picker-results { display: grid; gap: 6px; margin-top: 10px; max-height: min(320px, 45vh); overflow: auto; }
+.picker-choice { display: block; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.picker-choice span { display: block; color: var(--ink-soft); font-size: 12px; }
+#abCreateOrder[hidden] { display: none; }
 .panel { scroll-margin-top: 96px; }
 .fraction-bar { position: sticky; top: 0; z-index: 20; }
 .fraction-bar .fbtn:disabled { opacity: .45; cursor: default; }
@@ -1270,8 +1272,16 @@ tr.rowlink:hover { background: #faf7f0; }
 .preview-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .mode-banner { background: #fff3cd; border: 1px solid #b08b39; padding: 10px; margin-bottom: 12px; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #87662d; outline-offset: 2px; }
-@media (max-width: 1100px) { .actionbar .status { flex-basis: 100%; } .main { padding-bottom: 170px; } }
+@media (max-width: 1100px) {
+  .actionbar .status { flex-basis: 100%; }
+  .measurement-menu > div { left: 0; right: auto; }
+  .main { padding-bottom: 170px; }
+}
 @media (max-width: 820px) { .side { max-width: 100vw; } .actionbar { padding: 8px 14px; } }
+@media (max-width: 720px) {
+  #mtabs { flex-wrap: wrap; }
+  #mtabs .tab { padding: 8px 10px; white-space: normal; text-align: left; }
+}
 @media (pointer: coarse) { .btn, .tab, .fbtn, .seg button, input, select { min-height: 44px; } }
 </style>
 </head>
@@ -1362,6 +1372,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
       <button class="btn danger" id="abClearAll">Clear fields</button>
     </div></details>
     <button class="btn" id="abPrint">Print preview</button>
+    <button class="btn" id="abCreateOrder">Create order</button>
     <button class="btn primary" id="abSave">Save measurements</button>
 
   </div>
@@ -2135,8 +2146,9 @@ function load_() {
 }
 
 let DB = load_();
+const measurementBaselines = new WeakMap();
 
-function latestDatabaseForMeasurementSave() {
+function latestStoredDatabase() {
   const keys = DEMO_MODE ? [DB_KEY] : [DB_KEY, "modisto_bespoke_v6", "modisto_bespoke_v5", "modisto_bespoke_v4", "modisto_bespoke_v3"];
   for (const key of keys) {
     const raw = localStorage.getItem(key);
@@ -3343,8 +3355,26 @@ function convertMeasurementUnit(record, targetUnit) {
   record.unit = targetUnit;
 }
 
-let MEASURE_ALL_SECTIONS = false;
+const MEASUREMENT_VIEW_KEY = DB_KEY + "_measurement_view";
+let measureViewPreference;
+try { measureViewPreference = localStorage.getItem(MEASUREMENT_VIEW_KEY); } catch {}
 let PRINT_PREVIEW_OPEN = false;
+
+function measurementViewMode() {
+  if (["tabs", "relevant", "all"].includes(measureViewPreference)) return measureViewPreference;
+  return DB.settings.viewMode === "tabs" || matchMedia("(max-width: 720px)").matches ? "tabs" : "relevant";
+}
+
+function orderNumberKey(value) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function linkedOrderForDocket(docket, orders = DB.orders) {
+  const number = orderNumberKey(docket.orderNo);
+  const clientOrders = Object.values(orders).filter(order => order.clientId === docket.clientId);
+  return clientOrders.find(order => docket.id && order.measurementId === docket.id)
+    || clientOrders.find(order => !order.measurementId && number && orderNumberKey(order.orderNo) === number);
+}
 
 function relevantMeasurementSections(record) {
   const sections = new Set();
@@ -3364,21 +3394,27 @@ function relevantMeasurementSections(record) {
 }
 
 function applyMeasurementSections() {
+  const mode = measurementViewMode();
   const relevant = relevantMeasurementSections(MREC);
-  $$("#mtabs .tab[data-p]").forEach(t => t.classList.toggle("on", t.dataset.p === ACTIVE_MEASURE_TAB));
-  for (const name of ["lower", "shirt", "upper", "wbs"]) {
-    const visible = MEASURE_ALL_SECTIONS || relevant.has(name);
-    $("#panel-" + name).classList.toggle("irrelevant", !visible);
-    $("#mtabs [data-p=" + name + "]").hidden = !visible;
+  const tabs = $$("#mtabs [data-p]");
+  const visibleTabs = tabs.filter(tab => mode !== "relevant" || tab.dataset.p === "vguide" || relevant.has(tab.dataset.p));
+  if (!visibleTabs.some(tab => tab.dataset.p === ACTIVE_MEASURE_TAB)) {
+    ACTIVE_MEASURE_TAB = visibleTabs[0].dataset.p;
   }
-  $("#panel-vguide").classList.toggle("on", ACTIVE_MEASURE_TAB === "vguide");
+  for (const tab of tabs) {
+    const section = tab.dataset.p;
+    const active = section === ACTIVE_MEASURE_TAB;
+    tab.hidden = !visibleTabs.includes(tab);
+    tab.classList.toggle("on", active);
+    tab.setAttribute("aria-pressed", String(active));
+    $("#panel-" + section).classList.toggle("on", mode === "tabs" || section === "vguide" ? active : !tab.hidden);
+  }
   $("#panel-summary").classList.toggle("on", PRINT_PREVIEW_OPEN);
-  $("#btnToggleViewMode").textContent = MEASURE_ALL_SECTIONS ? "Show relevant sections" : "Show all sections";
+  $("#mViewMode").value = mode;
 }
 
 function vMeasure() {
   const c = DB.clients[MREC.clientId];
-  const allClients = Object.values(DB.clients).sort((a, b) => a.name.localeCompare(b.name));
   const allSwatches = Object.values(DB.swatches);
   const allEmployees = Object.values(DB.employees || {});
   const printMode = DB.settings.printPagesMode || "2page";
@@ -3390,9 +3426,8 @@ function vMeasure() {
   const fabEst = estimateFabricFromMeasurements(MREC, MREC.estGarmentType || "2-Piece Bespoke Suit", MREC.estSetCount || 1);
   const swatchStatus = getSwatchAllocationStatus(MREC.swatchCode, 0);
   const projectedWithThis = swatchStatus ? Math.round((swatchStatus.stockMeters - fabEst.totalMeters) * 100) / 100 : null;
-  const linkedOrder = Object.values(DB.orders).find(o =>
-    o.clientId === MREC.clientId && MREC.orderNo && (o.orderNo || "").trim().toUpperCase() === MREC.orderNo.trim().toUpperCase()
-  );
+  const linkedOrder = linkedOrderForDocket(MREC);
+  const primarySwatch = getSwatchByCode(MREC.swatchCode);
 
   const swatchOptionsHTML = (selectedCode) => {
     return `<option value="">— Select Swatch # —</option>` + allSwatches.map(s =>
@@ -3411,15 +3446,14 @@ function vMeasure() {
   <div class="clientbar">
     <span class="cell">
       👤 Client:
-      <select id="mClientSelect" aria-label="Select Client">
-        ${allClients.map(cl => `<option value="${cl.id}" ${cl.id === MREC.clientId ? "selected" : ""}>${esc(cl.name)}${cl.city ? " (" + esc(cl.city) + ")" : ""}</option>`).join("")}
-        <option value="__NEW_CLIENT__">＋ Add a New Client…</option>
-      </select>
+      <button type="button" class="btn sm" id="mClientSelect" aria-haspopup="dialog">
+        Search clients${c ? " · " + esc(c.name) : ""}
+      </button>
 
     </span>
     <span class="cell">
       Order ID:
-      <input id="mOrderNo" value="${esc(MREC.orderNo)}" style="width:125px;" aria-label="Order ID">
+      <input id="mOrderNo" value="${esc(MREC.orderNo)}" style="width:125px;" aria-label="Order ID" ${linkedOrder?.measurementId ? "readonly" : ""}>
 
     </span>
     <span class="cell">
@@ -3435,9 +3469,9 @@ function vMeasure() {
     </span>
     <span class="cell">
       🧵 Primary Swatch #:
-      <select id="mSwatchCode" aria-label="Primary Swatch Code" style="max-width:210px;">
-        ${swatchOptionsHTML(MREC.swatchCode)}
-      </select>
+      <button type="button" class="btn sm" id="mSwatchCode" aria-haspopup="dialog">
+        Search swatches${MREC.swatchCode ? " · " + esc(primarySwatch?.code || MREC.swatchCode) : ""}
+      </button>
     </span>
     <span class="cell">
       ✂ Tailor / Measured By:
@@ -3463,7 +3497,7 @@ function vMeasure() {
         <span style="color:var(--gold-strong);font-weight:700;">📅 Trial: ${fmtDate(linkedOrder.trialDate)}</span>
         <span>🚚 Delivery: <b>${fmtDate(linkedOrder.delivery)}</b></span>
       ` : `
-        <span style="color:var(--ink-soft);">Measurement draft only. Create an order separately when the client is ready.</span>
+        <span style="color:var(--ink-soft);">Save the measurements, then choose Create order to review the order details.</span>
       `}
     </div>
     ${linkedOrder ? `
@@ -3557,8 +3591,14 @@ function vMeasure() {
   </div>
 
   <!-- SECTION TABS -->
+  <label class="measurement-view no-print" for="mViewMode">Measurement view
+    <select id="mViewMode">
+      <option value="tabs">Tabbed</option>
+      <option value="relevant">Relevant sections</option>
+      <option value="all">All sections</option>
+    </select>
+  </label>
   <div class="tabs" id="mtabs">
-    <button class="tab" id="btnToggleViewMode">Show all sections</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "lower" ? "on" : ""}" data-p="lower">1. Lower Body (Trouser)</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "shirt" ? "on" : ""}" data-p="shirt">2. Shirt Measurements</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "upper" ? "on" : ""}" data-p="upper">3. Suit / Upper Body</button>
@@ -3882,6 +3922,7 @@ function updateLiveFabricEstimatorUI() {
 }
 
 function mountMeasure() {
+  if (!measurementBaselines.has(MREC)) measurementBaselines.set(MREC, JSON.stringify(MREC));
   const renderMList = (boxId, list) => {
     const box = $(boxId);
     if (!box) return;
@@ -4110,11 +4151,13 @@ function mountMeasure() {
   $("#mNotes").oninput = e => { MREC.notes = e.target.value; buildSummary(); };
   $("#mOrderNo").oninput = e => { MREC.orderNo = e.target.value; buildSummary(); };
   $("#mDate").onchange = e => { MREC.date = e.target.value; buildSummary(); };
-  $("#mSwatchCode").onchange = e => {
-    MREC.swatchCode = e.target.value.trim();
+  $("#mSwatchCode").onclick = () => pickPrimarySwatch(code => {
+    MREC.swatchCode = code;
+    $("#mSwatchCode").textContent = code ? "Search swatches · " + code : "Search swatches";
     updateLiveFabricEstimatorUI();
     buildSummary();
-  };
+    markDirty();
+  });
   $("#mBy").onchange = e => {
     MREC.measuredBy = e.target.value;
     buildSummary();
@@ -4149,19 +4192,19 @@ function mountMeasure() {
     };
   }
 
-  // Client Select + New Client direct creation from Measurements (Point 2)
-  $("#mClientSelect").onchange = e => {
-    if (e.target.value === "__NEW_CLIENT__") {
-      e.target.value = MREC.clientId;
-      clientModal(null, true);
-      return;
-    }
-    MREC.clientId = e.target.value;
-    render();
-    mountMeasure();
-  };
-  $("#btnToggleViewMode").onclick = () => {
-    MEASURE_ALL_SECTIONS = !MEASURE_ALL_SECTIONS;
+  $("#mClientSelect").onclick = () => pickClientModal(id => {
+    if (id === MREC.clientId) return;
+    leaveMeasurementDraft(() => {
+      const latest = Object.values(DB.measurements)
+        .filter(docket => docket.clientId === id)
+        .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""))[0];
+      if (latest) ACTIONS.openMeasure(latest.id);
+      else ACTIONS.measureFor(id);
+    });
+  }, "Search clients", () => leaveMeasurementDraft(() => clientModal(null, true)));
+  $("#mViewMode").onchange = event => {
+    measureViewPreference = event.target.value;
+    try { localStorage.setItem(MEASUREMENT_VIEW_KEY, measureViewPreference); } catch {}
     applyMeasurementSections();
   };
 
@@ -4184,10 +4227,14 @@ function mountMeasure() {
   $$("#mtabs .tab[data-p]").forEach(t => t.onclick = () => {
     ACTIVE_MEASURE_TAB = t.dataset.p;
     applyMeasurementSections();
-    $("#panel-" + t.dataset.p).scrollIntoView({ behavior: "smooth", block: "start" });
+    if (measurementViewMode() !== "tabs") {
+      $("#panel-" + t.dataset.p).scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   });
   $("#abSave").onclick = saveMeasure;
-  $("#abNewClient").onclick = () => clientModal(null, true);
+  $("#abCreateOrder").hidden = Boolean(linkedOrderForDocket(MREC));
+  $("#abCreateOrder").onclick = createOrderFromMeasurement;
+  $("#abNewClient").onclick = () => leaveMeasurementDraft(() => clientModal(null, true));
   $("#abPrint").onclick = () => {
     PRINT_PREVIEW_OPEN = true;
     buildSummary();
@@ -4203,7 +4250,7 @@ function mountMeasure() {
   };
   $("#abCopyPrev").onclick = () => ACTIONS.copyPrev();
   $("#abClearAll").onclick = () => ACTIONS.clearMeasure();
-  $("#abNewMeasure").onclick = () => pickClientModal();
+  $("#abNewMeasure").onclick = () => leaveMeasurementDraft(() => pickClientModal());
   LAST_FOCUSED_INPUT = null;
   $$(".fraction-bar .fbtn").forEach(b => b.disabled = MREC.unit === "cm");
   $("#focusedFieldLabel").textContent = MREC.unit === "cm" ? "Metric entry: type decimals directly. Fraction buttons apply in inches." : "Focus a measurement, then choose a fraction.";
@@ -4215,10 +4262,15 @@ function mountMeasure() {
       : "New measurement docket — click Save Measurements when done";
   }
 
-  const markDirty = () => { $("#status").textContent = "Unsaved measurement changes · " + MREC.orderNo; };
+  const markDirty = () => {
+    if (measurementBaselines.get(MREC) !== JSON.stringify(MREC)) {
+      $("#status").textContent = "Unsaved measurement changes · " + MREC.orderNo;
+    }
+  };
   $("#main").oninput = markDirty;
   $("#main").onchange = markDirty;
   $$(".seg button[data-t], button[data-mat-t], #measureGarmentPicker [data-gp-id]").forEach(button => button.addEventListener("click", markDirty));
+  markDirty();
   buildSummary();
 }
 
@@ -4517,7 +4569,7 @@ async function saveMeasure() {
   snapshot.savedAt = new Date().toISOString();
   let next;
   try {
-    const latest = latestDatabaseForMeasurementSave();
+    const latest = latestStoredDatabase();
     if (JSON.stringify(latest.measurements[snapshot.id] || null) !== JSON.stringify(DB.measurements[snapshot.id] || null)) {
       throw new Error("This docket changed in another tab. Copy your draft notes, then reload the saved docket before retrying.");
     }
@@ -4530,6 +4582,7 @@ async function saveMeasure() {
   }
   DB = next;
   MREC.savedAt = snapshot.savedAt;
+  measurementBaselines.set(MREC, JSON.stringify(MREC));
   $("#status").textContent = "Saved locally · " + MREC.orderNo + " · " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   toast("Measurements saved locally");
   // An opaque no-cors response cannot acknowledge a Sheets write.
@@ -5529,8 +5582,33 @@ function employeeModal(emp) {
   };
 }
 
-function orderModal(o, clientId) {
+function createOrderFromMeasurement() {
+  const docket = DB.measurements[MREC.id];
+  if (!docket || measurementBaselines.get(MREC) !== JSON.stringify(MREC)) {
+    toast("Save measurements first, then choose Create order.");
+    return;
+  }
+  if (linkedOrderForDocket(docket)) {
+    render();
+    toast("This docket already has a linked order.");
+    return;
+  }
+  orderModal(null, docket.clientId, docket);
+}
+
+function orderModal(o, clientId, sourceDocket = null) {
   o = o || {};
+  if (sourceDocket) {
+    const garments = Array.isArray(sourceDocket.selectedGarments) ? sourceDocket.selectedGarments : [];
+    const number = orderNumberKey(sourceDocket.orderNo);
+    const numberInUse = Object.values(DB.orders).some(order => orderNumberKey(order.orderNo) === number);
+    o = {
+      clientId: sourceDocket.clientId,
+      orderNo: numberInUse ? "" : sourceDocket.orderNo,
+      garments: garments.map(garment => `${garment.qty ?? 1}× ${garment.name}`).join(" + "),
+      swatchCode: getSwatchByCode(sourceDocket.swatchCode)?.code || sourceDocket.swatchCode || ""
+    };
+  }
   const cid = o.clientId || clientId || Object.keys(DB.clients)[0];
   const allClients = Object.values(DB.clients).sort((a, b) => a.name.localeCompare(b.name));
   const allSwatches = Object.values(DB.swatches);
@@ -5544,17 +5622,18 @@ function orderModal(o, clientId) {
   };
 
   openModal(`
-    <h2>${o.id ? "Edit Order, Timeline & Costing" : "New Bespoke Order, Timeline & Costing"}</h2>
+    <h2>${sourceDocket ? "Create order from measurements" : o.id ? "Edit Order, Timeline & Costing" : "New Bespoke Order, Timeline & Costing"}</h2>
+    ${sourceDocket ? "<p>Review the garments and swatch, then enter the agreed order details.</p>" : ""}
     <div class="grid3">
       <div class="field">
         <label class="req">Client</label>
-        <select id="omClient">
-          ${allClients.map(c => `<option value="${c.id}" ${c.id === cid ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
+        <select id="omClient" ${sourceDocket || o.measurementId ? "disabled" : ""}>
+          ${allClients.map(c => `<option value="${esc(c.id)}" ${c.id === cid ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
         </select>
       </div>
       <div class="field">
         <label>Order No</label>
-        <input id="omNo" value="${esc(o.orderNo || makeOrderNo())}">
+        <input id="omNo" value="${esc(o.orderNo || makeOrderNo())}" ${o.measurementId ? "readonly" : ""}>
       </div>
       <div class="field">
         <label>Workshop Stage</label>
@@ -5609,6 +5688,7 @@ function orderModal(o, clientId) {
         <label>Primary Swatch #</label>
         <select id="omSwatch">
           <option value="">— Select Swatch # —</option>
+          ${o.swatchCode && !allSwatches.some(s => s.code === o.swatchCode) ? `<option value="${esc(o.swatchCode)}" selected>${esc(o.swatchCode)}</option>` : ""}
           ${allSwatches.map(s => `<option value="${esc(s.code)}" ${s.code === o.swatchCode ? "selected" : ""}>${esc(s.code)} · ${esc(s.colorName)} (Stock: ${s.stockMeters}m)</option>`).join("")}
         </select>
       </div>
@@ -5697,7 +5777,7 @@ function orderModal(o, clientId) {
     const sw = getSwatchByCode(swCode);
     const stockBox = $("#omStockAlertBox");
 
-    if (sw && stockBox) {
+    if (sw && stockBox && reqM !== null) {
       const stockM = parseFloat(sw.stockMeters) || 0;
       if (reqM > stockM) {
         const shortBy = Math.round((reqM - stockM) * 100) / 100;
@@ -5740,7 +5820,7 @@ function orderModal(o, clientId) {
 
   $("#btnAutoEstCloth").onclick = () => {
     const selClientId = $("#omClient").value;
-    const mrec = getClientLatestMrec(selClientId);
+    const mrec = sourceDocket || getClientLatestMrec(selClientId);
     const gText = $("#omGarments").value || "2-Piece Bespoke Suit";
     const est = estimateFabricFromMeasurements(mrec, gText, 1);
     $("#omMeters").value = est.totalMeters;
@@ -5785,7 +5865,7 @@ function orderModal(o, clientId) {
     const rec = {
       ...o,
       id: o.id || uid("o"),
-      clientId: $("#omClient").value,
+      clientId: sourceDocket?.clientId || (o.measurementId ? o.clientId : $("#omClient").value),
       orderNo: $("#omNo").value.trim(),
       status: statusVal,
       date: ordDate,
@@ -5816,9 +5896,45 @@ function orderModal(o, clientId) {
     // Synchronize workflow steps with the chosen Workshop Stage!
     syncOrderStageToWorkflow(rec, statusVal);
 
+    if (sourceDocket) {
+      try {
+        const latest = latestStoredDatabase();
+        const saved = latest.measurements[sourceDocket.id];
+        if (!saved || JSON.stringify(saved) !== JSON.stringify(sourceDocket) || !latest.clients[sourceDocket.clientId]) {
+          throw new Error("The docket or client changed. Reopen the saved docket before creating the order.");
+        }
+        if (linkedOrderForDocket(saved, latest.orders)) throw new Error("This docket already has a linked order.");
+        if (!rec.orderNo) throw new Error("Enter an order number.");
+        if (Object.values(latest.orders).some(order => orderNumberKey(order.orderNo) === orderNumberKey(rec.orderNo))) {
+          throw new Error("That order number is already in use. Enter a different number.");
+        }
+        if (!rec.garments) throw new Error("Enter the garments for this order.");
+        rec.measurementId = saved.id;
+        const next = {
+          ...latest,
+          orders: { ...latest.orders, [rec.id]: rec },
+          measurements: { ...latest.measurements, [saved.id]: { ...saved, orderNo: rec.orderNo } }
+        };
+        writeDatabase(next);
+        DB = next;
+      } catch (error) {
+        toast("Could not create order. " + error.message);
+        return;
+      }
+      if (MREC?.id === sourceDocket.id) {
+        MREC.orderNo = rec.orderNo;
+        measurementBaselines.set(MREC, JSON.stringify(MREC));
+      }
+      closeModal();
+      pushToSheets("Orders", flatOrder(rec));
+      go("orders");
+      toast(`Order ${rec.orderNo} created from measurements`);
+      return;
+    }
+
     // Also sync back to any linked Measurement Docket with the same Order No
-    const linkedM = Object.values(DB.measurements).find(m =>
-      (m.orderNo || "").trim().toUpperCase() === rec.orderNo.toUpperCase()
+    const linkedM = !rec.measurementId && Object.values(DB.measurements).find(m =>
+      m.clientId === rec.clientId && rec.orderNo && orderNumberKey(m.orderNo) === orderNumberKey(rec.orderNo)
     );
     if (linkedM) {
       linkedM.clientId = rec.clientId;
@@ -6289,47 +6405,83 @@ function swatchModal(s) {
   };
 }
 
-function pickClientModal() {
-  const list = Object.values(DB.clients).sort((a, b) => a.name.localeCompare(b.name));
-  if (!list.length) { clientModal(null, true); return; }
+function searchPicker(title, placeholder, choices, onPick, extra) {
+  const opener = document.activeElement;
   openModal(`
-    <h2>New Measurement Docket — Select Existing or Add New Client</h2>
-    <div class="searchrow">
-      <input id="pickSearch" type="text" placeholder="Search client by name, company, city or phone…">
-      <button class="btn primary" id="pickNewTop">＋ Add New Client &amp; Measure</button>
-    </div>
-    <div id="pickList" style="max-height:320px;overflow:auto;"></div>
-    <div class="actions">
-      <button class="btn" id="pickCancel">Cancel</button>
+    <div role="dialog" aria-labelledby="pickTitle">
+      <h2 id="pickTitle">${esc(title)}</h2>
+      <input class="picker-search" id="pickSearch" type="search" aria-label="${esc(placeholder)}" placeholder="${esc(placeholder)}">
+      <div class="picker-results" id="pickList"></div>
+      <div class="actions">
+        ${extra ? `<button class="btn" id="pickExtra">${esc(extra.label)}</button>` : ""}
+        <button class="btn" id="pickCancel">Cancel</button>
+      </div>
     </div>
   `);
-  const draw = q => {
-    q = (q || "").toLowerCase();
-    $("#pickList").innerHTML = "<table><tbody>" + list
-      .filter(c => !q || (c.name + " " + (c.company || "") + " " + (c.city || "") + " " + (c.phone || "")).toLowerCase().includes(q))
-      .map(c => `<tr class="rowlink" data-pick="${c.id}">
-        <td>
-          <span class="cname">
-            <span class="avatar">${esc(initials(c.name))}</span>
-            <span>
-              ${esc(c.name)}
-              <div style="font-size:11.5px;color:var(--ink-soft);font-weight:400;">${esc(c.company || "")}</div>
-            </span>
-          </span>
-        </td>
-        <td style="color:var(--ink-soft);">${esc(c.phone || "")}</td>
-        <td style="text-align:right;"><span class="badge">${esc(c.city || c.branch || "Mumbai")}</span></td>
-      </tr>`).join("") + "</tbody></table>";
-    $$("#pickList [data-pick]").forEach(r => r.onclick = () => {
-      closeModal();
-      ACTIONS.measureFor(r.dataset.pick);
+  const search = $("#pickSearch");
+  const dismiss = () => {
+    closeModal();
+    opener?.focus();
+  };
+  const draw = () => {
+    const query = search.value.trim().toLowerCase();
+    const matches = choices.filter(choice => [choice.label, choice.detail, choice.keywords].join(" ").toLowerCase().includes(query));
+    $("#pickList").innerHTML = matches.length
+      ? matches.map((choice, index) => `<button type="button" class="btn picker-choice" data-pick="${index}">${esc(choice.label)}
+        <span>${esc(choice.detail)}</span></button>`).join("")
+      : '<p role="status">No matches. Try a different search.</p>';
+    $$("#pickList [data-pick]").forEach(button => button.onclick = () => {
+      dismiss();
+      onPick(matches[Number(button.dataset.pick)].value);
     });
   };
-  draw("");
-  $("#pickSearch").oninput = e => draw(e.target.value);
-  $("#pickSearch").focus();
-  $("#pickCancel").onclick = closeModal;
-  $("#pickNewTop").onclick = () => { closeModal(); clientModal(null, true); };
+  draw();
+  search.oninput = draw;
+  search.onkeydown = event => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      dismiss();
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const matches = $$("#pickList [data-pick]");
+      if (matches.length === 1) matches[0].click();
+    }
+  };
+  search.focus();
+  $("#pickCancel").onclick = dismiss;
+  if (extra) $("#pickExtra").onclick = () => { dismiss(); extra.run(); };
+}
+
+function pickClientModal(onPick = ACTIONS.measureFor, title = "New measurement docket", onNew = () => clientModal(null, true)) {
+  const choices = Object.values(DB.clients)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(client => ({
+      value: client.id,
+      label: client.name,
+      detail: [client.company, client.city || client.branch, client.phone].filter(Boolean).join(" · ")
+    }));
+  if (!choices.length) { onNew(); return; }
+  searchPicker(title, "Search by name, company, city or phone", choices, onPick, { label: "Add new client", run: onNew });
+}
+
+function pickPrimarySwatch(onPick) {
+  const choices = Object.values(DB.swatches).map(swatch => ({
+    value: swatch.code,
+    label: [swatch.code, swatch.colorName].filter(Boolean).join(" · "),
+    detail: [swatch.book, swatch.mill, swatch.composition].filter(Boolean).join(" · "),
+    keywords: swatch.category
+  }));
+  searchPicker("Search primary swatches", "Search by code, colour, mill or fabric", choices, onPick,
+    MREC.swatchCode ? { label: "Clear primary swatch", run: () => onPick("") } : null);
+}
+
+function leaveMeasurementDraft(openNext) {
+  if (measurementBaselines.get(MREC) !== JSON.stringify(MREC)) {
+    confirmDialog("Unsaved measurements", "Save your current docket first to keep your edits.", "Discard and continue", openNext);
+    return;
+  }
+  openNext();
 }
 
 /* ============================================================================
@@ -6382,9 +6534,12 @@ const ACTIONS = {
   openMeasureByOrder(orderId) {
     const o = DB.orders[orderId];
     if (!o) return;
-    let m = Object.values(DB.measurements).find(x =>
-      x.clientId === o.clientId && o.orderNo && (x.orderNo || "").trim().toUpperCase() === o.orderNo.trim().toUpperCase()
-    );
+    let m = DB.measurements[o.measurementId];
+    if (m?.clientId !== o.clientId) {
+      m = Object.values(DB.measurements).find(x =>
+        x.clientId === o.clientId && o.orderNo && orderNumberKey(x.orderNo) === orderNumberKey(o.orderNo)
+      );
+    }
     if (!m) {
       // Create a linked measurement docket for this order so the user can immediately enter measurements
       m = blankMeasure(o.clientId);
