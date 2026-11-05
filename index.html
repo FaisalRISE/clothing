@@ -948,9 +948,8 @@ tr.rowlink:hover { background: #faf7f0; }
   font-size: 11px;
   font-weight: 700;
   color: #131b29;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .docket-client-box .dcb-val.hi {
   font-size: 12.5px;
@@ -982,6 +981,7 @@ tr.rowlink:hover { background: #faf7f0; }
 .docket-tbl {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 .docket-tbl td {
   padding: 2.5px 6px;
@@ -995,9 +995,10 @@ tr.rowlink:hover { background: #faf7f0; }
   text-align: right;
   font-weight: 700;
   color: #131b29;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   background: #faf8f3;
-  width: 58px;
+  width: 48%;
 }
 .docket-subhead {
   background: #f3ecdd;
@@ -1250,6 +1251,28 @@ tr.rowlink:hover { background: #faf7f0; }
     padding: 3px 4px !important;
   }
 }
+/* Measurement milestone: keep wide content inside its own workspace. */
+.main, .card, .duo > *, .trio > * { min-width: 0; }
+.main { width: 100%; }
+.clientbar .cell { flex-wrap: wrap; max-width: 100%; }
+.clientbar input, .clientbar select { max-width: 100%; }
+.measurement-sections > #panel-lower, .measurement-sections > #panel-shirt,
+.measurement-sections > #panel-upper, .measurement-sections > #panel-wbs { display: block; margin-bottom: 18px; }
+@media screen {
+  .measurement-sections > .panel.irrelevant { display: none !important; }
+}
+.panel { scroll-margin-top: 96px; }
+.fraction-bar { position: sticky; top: 0; z-index: 20; }
+.fraction-bar .fbtn:disabled { opacity: .45; cursor: default; }
+.measurement-menu { position: relative; }
+.measurement-menu > div { position: absolute; bottom: 48px; right: 0; min-width: 190px; padding: 10px; background: white; border: 1px solid var(--line); box-shadow: var(--shadow); display: grid; gap: 8px; }
+.measurement-menu summary { list-style: none; cursor: pointer; }
+.preview-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.mode-banner { background: #fff3cd; border: 1px solid #b08b39; padding: 10px; margin-bottom: 12px; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #87662d; outline-offset: 2px; }
+@media (max-width: 1100px) { .actionbar .status { flex-basis: 100%; } .main { padding-bottom: 170px; } }
+@media (max-width: 820px) { .side { max-width: 100vw; } .actionbar { padding: 8px 14px; } }
+@media (pointer: coarse) { .btn, .tab, .fbtn, .seg button, input, select { min-height: 44px; } }
 </style>
 </head>
 <body>
@@ -1331,12 +1354,16 @@ tr.rowlink:hover { background: #faf7f0; }
 <!-- STICKY MEASUREMENT ACTION BAR -->
 <div class="actionbar" id="actionbar">
   <div class="inner">
-    <span class="status" id="status">Ready to record bespoke measurements</span>
-    <button class="btn sm soft" id="abNewMeasure">＋ New Measurement</button>
-    <button class="btn sm" id="abCopyPrev">⧉ Copy from Previous</button>
-    <button class="btn sm danger" id="abClearAll">🗑 Clear All</button>
-    <button class="btn" id="abPrint">🖨 Generate Measurement Sheet</button>
-    <button class="btn primary" id="abSave">💾 Save Measurements &amp; Sync Order</button>
+    <span class="status" id="status" role="status" aria-live="polite">Ready to record measurements</span>
+    <details class="measurement-menu"><summary class="btn">More actions</summary><div>
+      <button class="btn" id="abNewMeasure">New docket</button>
+      <button class="btn" id="abNewClient">New client</button>
+      <button class="btn" id="abCopyPrev">Copy previous</button>
+      <button class="btn danger" id="abClearAll">Clear fields</button>
+    </div></details>
+    <button class="btn" id="abPrint">Print preview</button>
+    <button class="btn primary" id="abSave">Save measurements</button>
+
   </div>
 </div>
 
@@ -1504,88 +1531,73 @@ const GARMENT_CATALOG = [
 const GARMENT_OPTIONS = GARMENT_CATALOG.map(g => g.name);
 
 function buildDefaultWorkflow(orderDate, currentStage, cutterName, karigarName) {
-  const stageIdx = ORDER_STAGES.indexOf(currentStage || "New");
-  const baseDate = orderDate ? new Date(orderDate + "T00:00:00") : new Date();
-  let runningDate = new Date(baseDate);
-
-  return WORKFLOW_TEMPLATE.map((step, idx) => {
-    const isDone = idx < stageIdx || (currentStage === "Delivered" && idx <= stageIdx);
-    const prevDate = new Date(runningDate);
-    runningDate.setDate(runningDate.getDate() + step.defaultDays);
-    const doneDateStr = isDone ? runningDate.toISOString().slice(0, 10) : "";
-    const daysTaken = isDone ? Math.max(1, Math.round((runningDate - prevDate) / 86400000)) : "";
-    let person = cutterName || "Susheel Racherla";
-    if (step.key === "stitch_trial" || step.key === "finishing") person = karigarName || cutterName || "Ramesh Master";
-    return {
-      key: step.key,
-      label: step.label,
-      stage: step.stage,
-      done: isDone,
-      doneDate: doneDateStr,
-      daysTaken: daysTaken,
-      assignedTo: person,
-      notes: ""
-    };
-  });
+  // A stage is a current summary, never evidence that earlier work happened.
+  return WORKFLOW_TEMPLATE.map(step => ({
+    key: step.key, label: step.label, stage: step.stage,
+    done: false, doneDate: "", daysTaken: "",
+    assignedTo: (step.key === "stitch_trial" || step.key === "finishing")
+      ? (karigarName || "") : (cutterName || ""),
+    notes: ""
+  }));
 }
 
-/* ---------------- INITIAL SEED DATA ---------------- */
+/* ---------------- FICTIONAL DEMO FIXTURES ---------------- */
 function getSeedData() {
   return {
     settings: {
       appsScriptUrl: "",
-      measuredByDefault: "Susheel Racherla",
+      measuredByDefault: "Demo Master Cutter",
       activeBranch: "Mumbai · Andheri W",
       viewMode: "all", // 'all' or 'tabs'
       printPagesMode: "2page", // '2page' (Table + Visual Guide) or '1page' (Condensed Table only)
       logoDataUrl: "",
       atelierContactLine1: "Mumbai Atelier: Andheri West · London Studio: Northwood",
-      atelierContactLine2: "📞 +91 98200 45100 · +44 20 7946 0192 · ✉ atelier@modistobespoke.com · www.modistobespoke.com"
+      atelierContactLine2: "Fictional demo records · studio@modisto.example"
     },
     employees: {
       "emp_1": {
         id: "emp_1",
-        name: "Susheel Racherla",
+        name: "Demo Master Cutter",
         role: "Master Cutter & Director",
         specialty: "Bespoke Suits, Posture Balance & London Trunk Shows",
         branch: "Mumbai & London",
-        phone: "+91 98200 45100",
+        phone: "",
         dailyCapHrs: 8
       },
       "emp_2": {
         id: "emp_2",
-        name: "Shridhar Racherla",
+        name: "Demo Pattern Cutter",
         role: "Founder & Chief Master Cutter",
         specialty: "Double Breasted, Ceremonial & Complex Patterns",
         branch: "Mumbai · Andheri W",
-        phone: "+91 98200 45101",
+        phone: "",
         dailyCapHrs: 7
       },
       "emp_3": {
         id: "emp_3",
-        name: "Arjun Mehta",
+        name: "Demo Fitting Tailor",
         role: "Senior Tailor & Fitting Master",
         specialty: "Sherwanis, Bandhgallas & Trial Alterations",
         branch: "Mumbai · Andheri W",
-        phone: "+91 98203 11220",
+        phone: "",
         dailyCapHrs: 8
       },
       "emp_4": {
         id: "emp_4",
-        name: "Ramesh Master",
+        name: "Demo Jacket Maker",
         role: "Head Jacket Karigar",
         specialty: "Full Floating Canvas & Hand Pick-Stitching",
         branch: "Mumbai · Andheri W",
-        phone: "+91 98671 44210",
+        phone: "",
         dailyCapHrs: 9
       },
       "emp_5": {
         id: "emp_5",
-        name: "Salim Bhai",
+        name: "Demo Shirt Maker",
         role: "Senior Trouser & Shirt Maker",
         specialty: "Gurkha Trousers, Pleats & Monogrammed Shirts",
         branch: "Mumbai · Andheri W",
-        phone: "+91 98192 55301",
+        phone: "",
         dailyCapHrs: 9
       }
     },
@@ -1599,8 +1611,8 @@ function getSeedData() {
         colorName: "Savile Midnight Navy",
         colorHex: "#1b2838",
         mill: "Holland & Sherry (UK)",
-        vendorName: "Luxury Fabrics India Pvt Ltd",
-        vendorContact: "+91 22 2600 4411 · orders@luxuryfabrics.in",
+        vendorName: "Demo Supplier 1",
+        vendorContact: "supplier1@modisto.example",
         costPerMeter: 8500,
         stockMeters: 14.5,
         minStockMeters: 10.0,
@@ -1616,8 +1628,8 @@ function getSeedData() {
         colorName: "Charcoal Chalkstripe",
         colorHex: "#373a40",
         mill: "VBC (Italy)",
-        vendorName: "Eurotex Bespoke Merchants",
-        vendorContact: "+91 98201 77820 · vbc@eurotexindia.com",
+        vendorName: "Demo Supplier 2",
+        vendorContact: "supplier2@modisto.example",
         costPerMeter: 7200,
         stockMeters: 9.25,
         minStockMeters: 12.0,
@@ -1633,8 +1645,8 @@ function getSeedData() {
         colorName: "Crisp Alabaster White",
         colorHex: "#f4f1ea",
         mill: "Soktas",
-        vendorName: "Soktas India Textile Distributors",
-        vendorContact: "+91 22 4012 8890 · desk@soktasindia.com",
+        vendorName: "Demo Supplier 3",
+        vendorContact: "supplier3@modisto.example",
         costPerMeter: 2400,
         stockMeters: 32.0,
         minStockMeters: 35.0,
@@ -1651,8 +1663,8 @@ function getSeedData() {
         colorName: "Warm Espresso Brown",
         colorHex: "#4a3728",
         mill: "Loro Piana (Italy)",
-        vendorName: "Loro Piana Milan / Mumbai Concierge",
-        vendorContact: "+91 98209 33100 · bespoke@loropiana-concierge.in",
+        vendorName: "Demo Supplier 4",
+        vendorContact: "supplier4@modisto.example",
         costPerMeter: 14500,
         stockMeters: 3.5,
         minStockMeters: 8.0,
@@ -1668,8 +1680,8 @@ function getSeedData() {
         colorName: "Antique Ivory & Gold",
         colorHex: "#e6dcc5",
         mill: "Raymond Luxury",
-        vendorName: "Raymond Luxury Cottons & Silks",
-        vendorContact: "+91 22 6152 7000 · exotica@raymond.in",
+        vendorName: "Demo Supplier 5",
+        vendorContact: "supplier5@modisto.example",
         costPerMeter: 5800,
         stockMeters: 18.0,
         minStockMeters: 10.0,
@@ -1685,8 +1697,8 @@ function getSeedData() {
         colorName: "Sky Bengal Stripe",
         colorHex: "#9ab7d3",
         mill: "Albini Group",
-        vendorName: "Albini / Thomas Mason Mumbai Agency",
-        vendorContact: "+91 98190 66231 · sales@albinimumbai.in",
+        vendorName: "Demo Supplier 6",
+        vendorContact: "supplier6@modisto.example",
         costPerMeter: 3600,
         stockMeters: 12.75,
         minStockMeters: 10.0,
@@ -1695,83 +1707,83 @@ function getSeedData() {
       }
     },
     clients: {
-      "c_rajiv": {
-        id: "c_rajiv",
-        name: "Rajiv Mehta",
-        company: "Mehta Capital Advisors Pvt. Ltd.",
+      "c_demo_1": {
+        id: "c_demo_1",
+        name: "Demo Client One",
+        company: "Demo Advisory",
         designation: "Managing Director",
-        phone: "+91 98201 44510",
-        email: "rajiv.mehta@mehtacapital.in",
-        birthday: "1978-11-14",
+        phone: "",
+        email: "client1@modisto.example",
+        birthday: "",
         branch: "Mumbai · Andheri W",
         city: "Mumbai",
         country: "India",
-        address: "702 Palm Beach Residency, Juhu Tara Road, Mumbai 400049",
+        address: "",
         posture: "Bow Leg (0.5 in), Slight Right Shoulder Drop (0.25 in)",
         likes: "Single pleat trousers, 2-Button Notch Lapel, Side Vents, Cutaway collar shirts with RM monogram on left cuff.",
         remarks: "Long-standing Modisto patron. Prefers quarter-inch ease on waist and crisp canvas structure.",
         createdAt: "2025-05-24T10:00:00.000Z"
       },
-      "c_vikram": {
-        id: "c_vikram",
-        name: "Vikramaditya Singhania",
-        company: "Singhania Maritime & Infrastructure",
+      "c_demo_2": {
+        id: "c_demo_2",
+        name: "Demo Client Two",
+        company: "Demo Maritime",
         designation: "Chairman",
-        phone: "+91 98210 88900",
-        email: "v.singhania@singhaniagroup.com",
-        birthday: "1982-02-19",
+        phone: "",
+        email: "client2@modisto.example",
+        birthday: "",
         branch: "Mumbai · Andheri W",
         city: "Mumbai",
         country: "India",
-        address: "Penthouse B, Sea Face Towers, Worli, Mumbai 400018",
+        address: "",
         posture: "Erect stance, broad chest, regular legs",
         likes: "Double-breasted peak lapel suits, Gurkha high-waist trousers with 1.75 in turn-ups, Loro Piana & VBC fabrics.",
         remarks: "Always uses Bemberg cupro lining and real horn buttons.",
         createdAt: "2026-01-12T11:30:00.000Z"
       },
-      "c_aarav": {
-        id: "c_aarav",
-        name: "Aarav Patel",
-        company: "Mayfair Sovereign Partners LLP",
+      "c_demo_3": {
+        id: "c_demo_3",
+        name: "Demo Client Three",
+        company: "Demo Partners",
         designation: "Senior Partner",
-        phone: "+44 7700 900412",
-        email: "aarav.patel@mayfairadvisors.co.uk",
-        birthday: "1986-08-05",
+        phone: "",
+        email: "client3@modisto.example",
+        birthday: "",
         branch: "London · Northwood",
         city: "London",
         country: "United Kingdom",
-        address: "14 Green Lane, Northwood, HA6 2QB, United Kingdom",
+        address: "",
         posture: "Knock Knees (0.5 in), Left Shoulder Down (0.5 in)",
         likes: "Savile Row structured shoulder, ticket pocket, double cuffs for cufflinks.",
-        remarks: "Measured by Susheel during London appointment; garments crafted in Mumbai atelier & shipped.",
+        remarks: "Sample London fitting with workshop production in Mumbai.",
         createdAt: "2026-03-08T15:20:00.000Z"
       },
-      "c_karan": {
-        id: "c_karan",
-        name: "Karan Malhotra",
-        company: "Malhotra Dharma Productions & Studios",
+      "c_demo_4": {
+        id: "c_demo_4",
+        name: "Demo Client Four",
+        company: "Demo Studios",
         designation: "Executive Producer",
-        phone: "+91 99674 23110",
-        email: "karan@malhotrastudios.com",
-        birthday: "1994-12-03",
+        phone: "",
+        email: "client4@modisto.example",
+        birthday: "",
         branch: "Mumbai · Andheri W",
         city: "Mumbai",
         country: "India",
-        address: "12th Road, Khar West, Mumbai 400052",
+        address: "",
         posture: "Athletic V-taper, prominent biceps",
         likes: "Wedding Sherwani, Bandi sets, slim tapered trousers with no pleats.",
-        remarks: "Groom wedding trousseau order — 1st trial scheduled with Shridhar Sir.",
+        remarks: "Sample wedding order with a first fitting scheduled.",
         createdAt: "2026-09-18T12:00:00.000Z"
       }
     },
     measurements: {
-      "m_rajiv_1": {
-        id: "m_rajiv_1",
-        clientId: "c_rajiv",
-        orderNo: "#ORD-2025-1258",
+      "m_demo_1": {
+        id: "m_demo_1",
+        clientId: "c_demo_1",
+        orderNo: "#DEMO-001",
         date: "2025-05-24",
         unit: "in",
-        measuredBy: "Arjun Mehta",
+        measuredBy: "Demo Fitting Tailor",
         swatchCode: "SW-1042",
         trouserSwatch: "SW-1042",
         shirtSwatch: "SW-3110",
@@ -1868,21 +1880,21 @@ function getSeedData() {
           "shirtInitialsText": "R.M. (Navy thread on Left Cuff)",
           "shirtComments": "Cut from SW-3110 Giza Cotton; French placket, mother-of-pearl buttons.",
           "shoulderDownInches": "0.25",
-          "Initials in Suit": "Rajiv Mehta",
+          "Initials in Suit": "Demo Client One",
           "suitComments": "2-Button Notch Lapel, working surgeon cuffs, pick-stitching on lapel edge.",
           "waistcoatComments": "5-button V-neck with adjustable back strap",
           "bandiComments": "Classic curved hem bandhgalla collar"
         },
-        notes: "Verified quarter-inch inseam (29.25 in) and right shoulder pad (+0.25 in) by Susheel Racherla.",
+        notes: "Verified quarter-inch inseam (29.25 in) and right shoulder pad (+0.25 in) by Demo Master Cutter.",
         savedAt: "2025-05-24T14:20:00.000Z"
       },
-      "m_aarav_1": {
-        id: "m_aarav_1",
-        clientId: "c_aarav",
-        orderNo: "#ORD-2026-1092",
+      "m_demo_3": {
+        id: "m_demo_3",
+        clientId: "c_demo_3",
+        orderNo: "#DEMO-003",
         date: "2026-03-10",
         unit: "in",
-        measuredBy: "Susheel Racherla",
+        measuredBy: "Demo Master Cutter",
         swatchCode: "SW-2089",
         trouserSwatch: "SW-2089",
         shirtSwatch: "SW-6018",
@@ -1947,7 +1959,7 @@ function getSeedData() {
           "collarComment": "English Spread collar with 0.25 in tie space",
           "shirtInitialsText": "A.P.",
           "shoulderDownInches": "0.5",
-          "Initials in Suit": "A. Patel"
+          "Initials in Suit": "D. C."
         },
         notes: "London Northwood trunk fitting. Left shoulder wadding required.",
         savedAt: "2026-03-10T16:00:00.000Z"
@@ -1956,8 +1968,8 @@ function getSeedData() {
     orders: {
       "o_1": {
         id: "o_1",
-        clientId: "c_rajiv",
-        orderNo: "#ORD-2025-1258",
+        clientId: "c_demo_1",
+        orderNo: "#DEMO-001",
         date: "2026-10-12",
         trialDate: "2026-10-28",
         delivery: "2026-11-08",
@@ -1965,8 +1977,8 @@ function getSeedData() {
         swatchCode: "SW-1042",
         fabric: "SW-1042 · Holland & Sherry Super 130s Midnight Navy + SW-3110 Giza White",
         liningCode: "Bemberg Cupro #402 Royal Navy",
-        assignedTo: "Susheel Racherla",
-        karigarAssigned: "Ramesh Master",
+        assignedTo: "Demo Master Cutter",
+        karigarAssigned: "Demo Jacket Maker",
         status: "1st Trial / Fitting",
         estDays: 14,
         actualDays: 18,
@@ -1975,18 +1987,18 @@ function getSeedData() {
         painPointNote: "1st trial delayed by 4 days due to client travel & floating canvas hand-padding",
         fabricMeters: 3.5,
         fabricRate: 8500,
-        trimsCost: 4800,
-        cutterCost: 6500,
-        karigarCost: 9500,
-        trialShippingCost: 1500,
-        amount: 98000,
-        advancePaid: 50000,
+        trimsCost: 4000,
+        cutterCost: 6000,
+        karigarCost: 8500,
+        trialShippingCost: 1000,
+        amount: 90000,
+        advancePaid: 30000,
         notes: "1st basted fitting scheduled for Saturday at Mumbai Andheri atelier."
       },
       "o_2": {
         id: "o_2",
-        clientId: "c_vikram",
-        orderNo: "#ORD-2026-1284",
+        clientId: "c_demo_2",
+        orderNo: "#DEMO-002",
         date: "2026-10-18",
         trialDate: "2026-11-05",
         delivery: "2026-11-15",
@@ -1994,8 +2006,8 @@ function getSeedData() {
         swatchCode: "SW-4055",
         fabric: "SW-4055 · Loro Piana Tasmanian Super 170s Espresso",
         liningCode: "Bemberg Champagne Gold #118",
-        assignedTo: "Shridhar Racherla",
-        karigarAssigned: "Ramesh Master",
+        assignedTo: "Demo Pattern Cutter",
+        karigarAssigned: "Demo Jacket Maker",
         status: "Cutting",
         estDays: 16,
         actualDays: 12,
@@ -2004,18 +2016,18 @@ function getSeedData() {
         painPointNote: "Awaiting extra 0.75m of SW-4055 from mill for waistcoat & Gurkha waistband",
         fabricMeters: 4.25,
         fabricRate: 14500,
-        trimsCost: 6200,
-        cutterCost: 8500,
-        karigarCost: 12000,
-        trialShippingCost: 1200,
-        amount: 165000,
-        advancePaid: 100000,
+        trimsCost: 5500,
+        cutterCost: 7500,
+        karigarCost: 11000,
+        trialShippingCost: 1500,
+        amount: 150000,
+        advancePaid: 60000,
         notes: "Full floating horsehair canvas; hand-sewn Milanese buttonhole on left lapel."
       },
       "o_3": {
         id: "o_3",
-        clientId: "c_aarav",
-        orderNo: "#ORD-2026-1092",
+        clientId: "c_demo_3",
+        orderNo: "#DEMO-003",
         date: "2026-10-05",
         trialDate: "2026-10-25",
         delivery: "2026-11-04",
@@ -2023,8 +2035,8 @@ function getSeedData() {
         swatchCode: "SW-3110",
         fabric: "SW-3110 · Soktas Giza 87 White (40m Bulk Allocation) + SW-2089 VBC",
         liningCode: "Bemberg Claret #509",
-        assignedTo: "Susheel Racherla",
-        karigarAssigned: "Salim Bhai",
+        assignedTo: "Demo Master Cutter",
+        karigarAssigned: "Demo Shirt Maker",
         status: "Stitching",
         estDays: 18,
         actualDays: 25,
@@ -2033,18 +2045,18 @@ function getSeedData() {
         painPointNote: "Fabric stock shortage on SW-3110 (40m required vs 32m in stock — 8m short) + Knock-Knees pattern balance",
         fabricMeters: 40.0,
         fabricRate: 2400,
-        trimsCost: 4500,
-        cutterCost: 6000,
-        karigarCost: 9000,
-        trialShippingCost: 6500,
-        amount: 148000,
-        advancePaid: 112000,
-        notes: "Includes DHL Express insured courier to London Northwood boutique."
+        trimsCost: 4250,
+        cutterCost: 5500,
+        karigarCost: 8000,
+        trialShippingCost: 5000,
+        amount: 145000,
+        advancePaid: 70000,
+        notes: "Sample courier delivery to the London studio."
       },
       "o_4": {
         id: "o_4",
-        clientId: "c_karan",
-        orderNo: "#ORD-2026-1301",
+        clientId: "c_demo_4",
+        orderNo: "#DEMO-004",
         date: "2026-10-22",
         trialDate: "2026-11-10",
         delivery: "2026-11-22",
@@ -2052,8 +2064,8 @@ function getSeedData() {
         swatchCode: "SW-5120",
         fabric: "SW-5120 · Heritage Raw Silk Matka Jacquard Ivory",
         liningCode: "Pure Mulberry Silk Ivory",
-        assignedTo: "Arjun Mehta",
-        karigarAssigned: "Ramesh Master",
+        assignedTo: "Demo Fitting Tailor",
+        karigarAssigned: "Demo Jacket Maker",
         status: "Ready",
         estDays: 20,
         actualDays: 19,
@@ -2062,219 +2074,94 @@ function getSeedData() {
         painPointNote: "On schedule — zardozi collar finishing completed 1 day early",
         fabricMeters: 4.5,
         fabricRate: 5800,
-        trimsCost: 7500,
-        cutterCost: 5500,
-        karigarCost: 14000,
-        trialShippingCost: 1000,
-        amount: 125000,
-        advancePaid: 75000,
+        trimsCost: 7000,
+        cutterCost: 5000,
+        karigarCost: 13000,
+        trialShippingCost: 1250,
+        amount: 120000,
+        advancePaid: 45000,
         notes: "Antique brass monogrammed buttons ready for final steam & delivery."
       }
     }
   };
 }
 
-/* ---------------- SELF-HEALING STORAGE & MEASUREMENT-TO-ORDER AUTO-SYNC ---------------- */
-const DB_KEY = "modisto_bespoke_v6";
+/* ---------------- LOCAL STORAGE: PRESERVE LEGACY RECORDS ---------------- */
+const DEMO_MODE = new URLSearchParams(location.search).get("demo") === "1";
+const DB_KEY = DEMO_MODE ? "modisto_bespoke_demo_v7" : "modisto_bespoke_v7";
+const RECOVERY_KEY = DB_KEY + "_recovery";
+let STORAGE_BLOCKED = false;
 
-/* Bi-directional synchronization between Order Stage and the 9-step Workflow Sequence */
-function syncOrderStageToWorkflow(o, newStage) {
-  if (!o) return;
-  const stage = ORDER_STAGES.includes(newStage) ? newStage : (o.status || "New");
-  o.status = stage;
-
-  if (!o.workflow || !Array.isArray(o.workflow) || o.workflow.length !== WORKFLOW_TEMPLATE.length) {
-    o.workflow = buildDefaultWorkflow(o.date, stage, o.assignedTo, o.karigarAssigned);
-  }
-
-  const stageIdx = ORDER_STAGES.indexOf(stage);
-  const baseDate = o.date ? new Date(o.date + "T00:00:00") : new Date();
-  let runningDate = new Date(baseDate);
-
-  o.workflow.forEach((step, idx) => {
-    const template = WORKFLOW_TEMPLATE[idx] || step;
-    step.label = template.label;
-    step.stage = template.stage;
-
-    // If stage is "Delivered", all 9 steps are done.
-    // Otherwise, all steps prior to stageIdx are done, and stageIdx is the current "Next / In-Progress" step.
-    const shouldBeDone = (stage === "Delivered") ? true : (idx < stageIdx);
-
-    if (shouldBeDone) {
-      step.done = true;
-      if (!step.daysTaken || isNaN(parseFloat(step.daysTaken))) {
-        step.daysTaken = template.defaultDays || 2;
-      }
-      runningDate.setDate(runningDate.getDate() + (parseFloat(step.daysTaken) || 1));
-      if (!step.doneDate) {
-        step.doneDate = runningDate.toISOString().slice(0, 10);
-      } else {
-        const parsedDone = new Date(step.doneDate + "T00:00:00");
-        if (!isNaN(parsedDone)) runningDate = parsedDone;
-      }
-    } else {
-      step.done = false;
-      step.doneDate = "";
-      step.daysTaken = "";
-    }
-
-    if (!step.assignedTo) {
-      step.assignedTo = (step.key === "stitch_trial" || step.key === "finishing")
-        ? (o.karigarAssigned || o.assignedTo || "Ramesh Master")
-        : (o.assignedTo || "Susheel Racherla");
-    }
-  });
-
-  const completedDays = o.workflow.reduce((acc, s) => acc + (s.done ? (parseFloat(s.daysTaken) || 0) : 0), 0);
-  o.actualDays = Math.max(1, completedDays || 1);
+function emptyDatabase() {
+  const settings = { ...getSeedData().settings, measuredByDefault: "", viewMode: "relevant",
+    atelierContactLine2: "" };
+  return { clients: {}, measurements: {}, orders: {}, swatches: {}, employees: {}, settings };
 }
 
-/* Reconcile all cross-module data (Measurements <-> Orders <-> Clients <-> Swatches <-> Workflow) */
-function reconcileAllData(dbObj) {
-  if (!dbObj) return;
-  if (!dbObj.measurements) dbObj.measurements = {};
-  if (!dbObj.orders) dbObj.orders = {};
-  if (!dbObj.clients) dbObj.clients = {};
-  if (!dbObj.swatches) dbObj.swatches = {};
+function normalizeDatabase(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid database");
+  const result = { ...data };
+  for (const key of ["clients", "measurements", "orders", "swatches", "employees"]) {
+    if (result[key] == null) result[key] = {};
+    if (typeof result[key] !== "object" || Array.isArray(result[key])) throw new Error("Invalid " + key);
+  }
+  result.settings = { ...emptyDatabase().settings, ...data.settings };
+  return result;
+}
 
-  // 1. Ensure every Measurement Docket has a corresponding Order and synced client posture
-  Object.values(dbObj.measurements).forEach(m => {
-    if (!m.orderNo) m.orderNo = makeOrderNo();
-    const cl = dbObj.clients[m.clientId];
-    if (cl && m.ticks) {
-      const stance = m.ticks["Leg Stance"] || "";
-      const bowIn = m.texts?.bowLegInches ? ` (${m.texts.bowLegInches}")` : "";
-      const knockIn = m.texts?.knockKneesInches ? ` (${m.texts.knockKneesInches}")` : "";
-      const shDown = m.ticks["Shoulder Down"] && m.ticks["Shoulder Down"] !== "Regular"
-        ? `, ${m.ticks["Shoulder Down"]}${m.texts?.shoulderDownInches ? ` (${m.texts.shoulderDownInches}")` : ""}`
-        : "";
-      if (stance && (!cl.posture || cl.posture === "Standard posture")) {
-        cl.posture = `${stance}${bowIn}${knockIn}${shDown}`;
-      }
+function syncOrderStageToWorkflow(o, newStage) {
+  if (!o) return;
+  if (ORDER_STAGES.includes(newStage)) o.status = newStage;
+  if (!Array.isArray(o.workflow)) {
+    o.workflow = buildDefaultWorkflow(o.date, o.status, o.assignedTo, o.karigarAssigned);
+  }
+  // Keep every existing step, date, assignment and extension intact.
+}
+
+function load_() {
+  try {
+    const keys = DEMO_MODE ? [DB_KEY] : [DB_KEY, "modisto_bespoke_v6", "modisto_bespoke_v5", "modisto_bespoke_v4", "modisto_bespoke_v3"];
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) return normalizeDatabase(JSON.parse(raw));
     }
-
-    let linkedOrder = Object.values(dbObj.orders).find(o =>
-      (o.orderNo || "").trim().toUpperCase() === (m.orderNo || "").trim().toUpperCase()
-    );
-    if (!linkedOrder) {
-      const sw = Object.values(dbObj.swatches).find(s => s.code === m.swatchCode);
-      const gList = (m.selectedGarments && m.selectedGarments.length)
-        ? m.selectedGarments.map(x => `${(x.qty || 1) > 1 ? x.qty + "× " : ""}${x.name}`).join(" + ")
-        : (m.estGarmentType || "2-Piece Bespoke Suit");
-      const orderDate = m.date || new Date().toISOString().slice(0, 10);
-      const tDate = new Date(orderDate + "T00:00:00");
-      tDate.setDate(tDate.getDate() + 10);
-      const dDate = new Date(orderDate + "T00:00:00");
-      dDate.setDate(dDate.getDate() + 18);
-      const fabEst = estimateFabricFromMeasurements(m, m.estGarmentType || "2-Piece Bespoke Suit", m.estSetCount || 1);
-
-      const newOrderId = "o_sync_" + m.id;
-      linkedOrder = {
-        id: newOrderId,
-        clientId: m.clientId,
-        orderNo: m.orderNo,
-        date: orderDate,
-        trialDate: tDate.toISOString().slice(0, 10),
-        delivery: dDate.toISOString().slice(0, 10),
-        garments: gList,
-        swatchCode: m.swatchCode || "SW-1042",
-        fabric: sw ? `${sw.code} · ${sw.book} (${sw.colorName})` : (m.swatchCode || "Bespoke Cloth"),
-        liningCode: "Bemberg Cupro",
-        assignedTo: m.measuredBy || "Susheel Racherla",
-        karigarAssigned: "Ramesh Master",
-        status: "Cutting",
-        estDays: 14,
-        actualDays: 6,
-        estHours: 28,
-        hoursSpent: 10,
-        painPointNote: "Synced with Measurement Docket",
-        fabricMeters: fabEst.totalMeters,
-        fabricRate: sw ? sw.costPerMeter : 8500,
-        trimsCost: 4500,
-        cutterCost: 6000,
-        karigarCost: 9000,
-        trialShippingCost: 1500,
-        amount: 95000,
-        advancePaid: 50000,
-        notes: m.notes || "",
-        workflow: buildDefaultWorkflow(orderDate, "Cutting", m.measuredBy || "Susheel Racherla", "Ramesh Master")
-      };
-      dbObj.orders[newOrderId] = linkedOrder;
-    }
-  });
-
-  // 2. Ensure every Order has its workflow strictly aligned with its current status
-  Object.values(dbObj.orders).forEach(o => {
-    if (!o.workflow || !Array.isArray(o.workflow) || o.workflow.length !== WORKFLOW_TEMPLATE.length) {
-      syncOrderStageToWorkflow(o, o.status || "New");
-    } else {
-      // Check if workflow done count matches o.status index; if out of sync, align it!
-      const expectedDone = o.status === "Delivered" ? WORKFLOW_TEMPLATE.length : Math.max(0, ORDER_STAGES.indexOf(o.status));
-      const currentDone = o.workflow.filter(s => s.done).length;
-      if (expectedDone !== -1 && currentDone !== expectedDone) {
-        syncOrderStageToWorkflow(o, o.status);
-      }
-    }
-  });
+    return DEMO_MODE ? getSeedData() : emptyDatabase();
+  } catch (e) {
+    // Never replace unreadable records with sample data or overwrite the source.
+    STORAGE_BLOCKED = true;
+    console.error("Stored data could not be loaded; source retained.", e);
+    return emptyDatabase();
+  }
 }
 
 let DB = load_();
 
-function load_() {
-  const seed = getSeedData();
-  Object.values(seed.orders).forEach(o => {
-    syncOrderStageToWorkflow(o, o.status);
-  });
+function latestDatabaseForMeasurementSave() {
+  const keys = DEMO_MODE ? [DB_KEY] : [DB_KEY, "modisto_bespoke_v6", "modisto_bespoke_v5", "modisto_bespoke_v4", "modisto_bespoke_v3"];
+  for (const key of keys) {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) return normalizeDatabase(JSON.parse(raw));
+  }
+  return DB;
+}
 
-  try {
-    const raw = localStorage.getItem(DB_KEY) || localStorage.getItem("modisto_bespoke_v5") || localStorage.getItem("modisto_bespoke_v4") || localStorage.getItem("modisto_bespoke_v3");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        if (!parsed.clients || Object.keys(parsed.clients).length === 0) parsed.clients = seed.clients;
-        if (!parsed.measurements || Object.keys(parsed.measurements).length === 0) parsed.measurements = seed.measurements;
-        if (!parsed.orders || Object.keys(parsed.orders).length === 0) parsed.orders = seed.orders;
-        if (!parsed.swatches || Object.keys(parsed.swatches).length === 0) parsed.swatches = seed.swatches;
-        if (!parsed.employees || Object.keys(parsed.employees).length === 0) parsed.employees = seed.employees;
-        parsed.settings = Object.assign({}, seed.settings, parsed.settings || {});
-
-        Object.keys(parsed.clients).forEach(k => {
-          if (seed.clients[k]) parsed.clients[k] = Object.assign({}, seed.clients[k], parsed.clients[k]);
-        });
-        Object.keys(parsed.swatches).forEach(k => {
-          if (seed.swatches[k]) parsed.swatches[k] = Object.assign({}, seed.swatches[k], parsed.swatches[k]);
-          if (parsed.swatches[k].minStockMeters === undefined) parsed.swatches[k].minStockMeters = 10;
-          if (!parsed.swatches[k].vendorName) parsed.swatches[k].vendorName = parsed.swatches[k].mill || "Authorized Textile Distributor";
-          if (!parsed.swatches[k].vendorContact) parsed.swatches[k].vendorContact = "+91 22 2600 4411 · orders@vendor.in";
-        });
-        Object.keys(parsed.orders).forEach(k => {
-          if (seed.orders[k]) parsed.orders[k] = Object.assign({}, seed.orders[k], parsed.orders[k]);
-          const ord = parsed.orders[k];
-          if (!ord.trialDate) {
-            const td = new Date((ord.date || "2026-10-20") + "T00:00:00");
-            td.setDate(td.getDate() + 10);
-            ord.trialDate = td.toISOString().slice(0, 10);
-          }
-        });
-
-        reconcileAllData(parsed);
-        try { localStorage.setItem(DB_KEY, JSON.stringify(parsed)); } catch (e) {}
-        return parsed;
-      }
-    }
-  } catch (e) {}
-  reconcileAllData(seed);
-  try { localStorage.setItem(DB_KEY, JSON.stringify(seed)); } catch (e) {}
-  return seed;
+function writeDatabase(next) {
+  if (STORAGE_BLOCKED) throw new Error("Stored data could not be loaded. Recover the original JSON before saving.");
+  if (!localStorage.getItem(RECOVERY_KEY)) {
+    localStorage.setItem(RECOVERY_KEY, localStorage.getItem(DB_KEY) || JSON.stringify(DB));
+  }
+  localStorage.setItem(DB_KEY, JSON.stringify(next));
 }
 
 function persist() {
   try {
-    localStorage.setItem(DB_KEY, JSON.stringify(DB));
+    writeDatabase(DB);
     updateNavCounts();
     renderSidebarBrandAndEmployees();
+    return true;
   } catch (e) {
-    toast("Storage limit reached — export a JSON backup in Settings.");
+    toast("Could not save locally — export a JSON backup in Settings. " + e.message);
+    return false;
   }
 }
 
@@ -2290,15 +2177,15 @@ function blankMeasure(clientId) {
     orderNo: makeOrderNo(),
     date: new Date().toISOString().slice(0, 10),
     unit: "in",
-    measuredBy: (DB.settings && DB.settings.measuredByDefault) || "Susheel Racherla",
-    swatchCode: "SW-1042",
-    trouserSwatch: "SW-1042",
-    shirtSwatch: "SW-3110",
-    suitSwatch: "SW-1042",
+    measuredBy: (DB.settings && DB.settings.measuredByDefault) || "",
+    swatchCode: "",
+    trouserSwatch: "",
+    shirtSwatch: "",
+    suitSwatch: "",
     estGarmentType: "2-Piece Bespoke Suit",
     estSetCount: 1,
     selectedGarments: [
-      { id: "suit2", name: "2-Piece Bespoke Suit", qty: 1, swatchCode: "SW-1042" }
+      { id: "suit2", name: "2-Piece Bespoke Suit", qty: 1, swatchCode: "" }
     ],
     measures: {},
     ticks: {
@@ -2385,7 +2272,7 @@ function renderSidebarBrandAndEmployees() {
   const tailorSel = $("#activeTailorSelect");
   if (tailorSel) {
     const emps = Object.values(DB.employees || {});
-    const current = DB.settings.measuredByDefault || (emps[0] ? emps[0].name : "Susheel Racherla");
+    const current = DB.settings.measuredByDefault || (emps[0] ? emps[0].name : "");
     tailorSel.innerHTML = emps.map(e =>
       `<option value="${esc(e.name)}" ${e.name === current ? "selected" : ""}>${esc(e.name)} · ${esc(e.role.split(" ")[0])}</option>`
     ).join("");
@@ -2545,9 +2432,9 @@ function calcOrderEconomics(o) {
   const profit = quoted - totalCost;
   const marginPct = quoted > 0 ? ((profit / quoted) * 100) : 0;
   const hours = parseFloat(o.hoursSpent) || 0;
-  const estHours = parseFloat(o.estHours) || hours || 28;
-  const estDays = parseFloat(o.estDays) || 14;
-  const actualDays = parseFloat(o.actualDays) || estDays;
+  const estHours = parseFloat(o.estHours) || 0;
+  const estDays = parseFloat(o.estDays) || 0;
+  const actualDays = parseFloat(o.actualDays) || 0;
   const profitPerHr = hours > 0 ? Math.round(profit / hours) : 0;
   return {
     fabricTotal, trims, cutter, karigar, shipping,
@@ -2671,6 +2558,8 @@ if (branchSel) {
 
 function render() {
   const m = $("#main");
+  m.oninput = null;
+  m.onchange = null;
   if (VIEW.name === "dashboard") m.innerHTML = vDashboard();
   else if (VIEW.name === "clients") m.innerHTML = vClients();
   else if (VIEW.name === "client") m.innerHTML = vClient(VIEW.id);
@@ -2682,6 +2571,12 @@ function render() {
   else if (VIEW.name === "measure") {
     m.innerHTML = vMeasure();
     mountMeasure();
+  }
+  if (DEMO_MODE || STORAGE_BLOCKED) {
+    const banner = document.createElement("div");
+    banner.className = "mode-banner no-print";
+    banner.textContent = DEMO_MODE ? "DEMO — sample records, stored separately from your workspace." : "Stored data could not be read. Saving is blocked to protect the original records.";
+    m.prepend(banner);
   }
   bindCommon();
 }
@@ -2958,7 +2853,7 @@ function vDashboard() {
               ${m.swatchCode ? renderSwatchBadge(m.swatchCode) : ""}
             </td>
             <td>
-              <span class="badge">${esc(stance)}${m.texts?.bowLegInches ? ` (${m.texts.bowLegInches}")` : ""}${m.texts?.knockKneesInches ? ` (${m.texts.knockKneesInches}")` : ""}</span>
+              <span class="badge">${esc(stance)}${m.texts?.bowLegInches ? ` (${esc(m.texts.bowLegInches)} ${esc(m.unit || "in")})` : ""}${m.texts?.knockKneesInches ? ` (${esc(m.texts.knockKneesInches)} ${esc(m.unit || "in")})` : ""}</span>
             </td>
             <td style="white-space:nowrap;font-size:12px;">${fmtDate(m.date)}</td>
           </tr>`;
@@ -3413,7 +3308,7 @@ const VISUAL_GUIDE_ITEMS = [
     code: "N",
     title: "BOW LEG / KNOCK KNEES",
     field: "__STANCE_INCHES__",
-    desc: "Measure knee gap (Bow Leg) or ankle gap (Knock Knees) in inches (e.g. 0.5 in).",
+    desc: "Measure knee gap (Bow Leg) or ankle gap (Knock Knees) in the selected docket unit.",
     svg: `<svg viewBox="0 0 120 110" fill="none">
       <!-- Left: Bow Leg, Right: Knock Knees -->
       <path d="M22 18 Q10 56 24 94" stroke="#131b29" stroke-width="4" stroke-linecap="round"/>
@@ -3428,24 +3323,75 @@ const VISUAL_GUIDE_ITEMS = [
   }
 ];
 
+function convertMeasurementUnit(record, targetUnit) {
+  const sourceUnit = record.unit || "in";
+  if (!["in", "cm"].includes(sourceUnit) || !["in", "cm"].includes(targetUnit)) throw new Error("Unknown unit");
+  if (sourceUnit === targetUnit) return;
+  const convert = value => {
+    if (value == null || String(value).trim() === "") return value;
+    if (!Number.isFinite(Number(value))) throw new Error("A measurement is not numeric; correct it before converting.");
+    const number = sourceUnit === "in" ? Number(value) * 2.54 : Number(value) / 2.54;
+    return String(Number(number.toPrecision(15)));
+  };
+  const measures = Object.fromEntries(Object.entries(record.measures || {}).map(([key,value]) => [key,convert(value)]));
+  const texts = { ...record.texts };
+  for (const key of ["bowLegInches", "knockKneesInches", "shoulderDownInches"]) {
+    if (Object.hasOwn(texts, key)) texts[key] = convert(texts[key]);
+  }
+  record.measures = measures;
+  record.texts = texts;
+  record.unit = targetUnit;
+}
+
+let MEASURE_ALL_SECTIONS = false;
+let PRINT_PREVIEW_OPEN = false;
+
+function relevantMeasurementSections(record) {
+  const sections = new Set();
+  const names = record.selectedGarments?.length ? record.selectedGarments.map(g => g.name).join(" ") : (record.estGarmentType || "");
+  if (/suit|tuxedo/i.test(names)) { sections.add("lower"); sections.add("upper"); }
+  if (/trouser|gurkha|pyjama/i.test(names)) sections.add("lower");
+  if (/shirt/i.test(names)) sections.add("shirt");
+  if (/blazer|jacket/i.test(names) && !/nehru/i.test(names)) sections.add("upper");
+  if (/3-piece|waistcoat|bandi|sherwani|kurta/i.test(names)) sections.add("wbs");
+  for (const [section, schemas] of Object.entries({ lower: [SCHEMA.lower], shirt: [SCHEMA.shirt], upper: [SCHEMA.upper], wbs: [SCHEMA.waistcoat,SCHEMA.bandi,SCHEMA.sherwani] })) {
+    if (schemas.some(schema => schema.measures.some(key => record.measures?.[key] != null && record.measures[key] !== ""))) sections.add(section);
+  }
+  for (const [section, keys] of Object.entries({ lower: ["bowLegInches", "knockKneesInches", "bowLegComment", "knockKneesComment", "forwardStanceComment"], shirt: ["shirtComments", "cuffComment", "collarComment"], upper: ["shoulderDownInches", "suitComments"], wbs: ["waistcoatComments", "bandiComments", "sherwaniComments"] })) {
+    if (keys.some(key => record.texts?.[key] != null && String(record.texts[key]).trim() !== "")) sections.add(section);
+  }
+  return sections.size ? sections : new Set(["lower", "shirt", "upper", "wbs"]);
+}
+
+function applyMeasurementSections() {
+  const relevant = relevantMeasurementSections(MREC);
+  $$("#mtabs .tab[data-p]").forEach(t => t.classList.toggle("on", t.dataset.p === ACTIVE_MEASURE_TAB));
+  for (const name of ["lower", "shirt", "upper", "wbs"]) {
+    const visible = MEASURE_ALL_SECTIONS || relevant.has(name);
+    $("#panel-" + name).classList.toggle("irrelevant", !visible);
+    $("#mtabs [data-p=" + name + "]").hidden = !visible;
+  }
+  $("#panel-vguide").classList.toggle("on", ACTIVE_MEASURE_TAB === "vguide");
+  $("#panel-summary").classList.toggle("on", PRINT_PREVIEW_OPEN);
+  $("#btnToggleViewMode").textContent = MEASURE_ALL_SECTIONS ? "Show relevant sections" : "Show all sections";
+}
+
 function vMeasure() {
   const c = DB.clients[MREC.clientId];
   const allClients = Object.values(DB.clients).sort((a, b) => a.name.localeCompare(b.name));
   const allSwatches = Object.values(DB.swatches);
   const allEmployees = Object.values(DB.employees || {});
-  const viewMode = DB.settings.viewMode || "all";
   const printMode = DB.settings.printPagesMode || "2page";
 
-  if (!MREC.selectedGarments || !Array.isArray(MREC.selectedGarments)) {
-    MREC.selectedGarments = [{ id: "suit2", name: MREC.estGarmentType || "2-Piece Bespoke Suit", qty: MREC.estSetCount || 1, swatchCode: MREC.swatchCode || "SW-1042" }];
-  }
+  if (!Array.isArray(MREC.selectedGarments)) MREC.selectedGarments = [];
+  MREC.measures ||= {}; MREC.ticks ||= {}; MREC.texts ||= {};
 
   // Calculate live fabric estimate from the current measurements
   const fabEst = estimateFabricFromMeasurements(MREC, MREC.estGarmentType || "2-Piece Bespoke Suit", MREC.estSetCount || 1);
   const swatchStatus = getSwatchAllocationStatus(MREC.swatchCode, 0);
   const projectedWithThis = swatchStatus ? Math.round((swatchStatus.stockMeters - fabEst.totalMeters) * 100) / 100 : null;
   const linkedOrder = Object.values(DB.orders).find(o =>
-    (o.orderNo || "").trim().toUpperCase() === (MREC.orderNo || "").trim().toUpperCase()
+    o.clientId === MREC.clientId && MREC.orderNo && (o.orderNo || "").trim().toUpperCase() === MREC.orderNo.trim().toUpperCase()
   );
 
   const swatchOptionsHTML = (selectedCode) => {
@@ -3457,23 +3403,8 @@ function vMeasure() {
   return `
   <div class="pagehead">
     ${c ? `<button class="crumb" data-go="client|${c.id}">← Back to ${esc(c.name)}</button>` : `<button class="crumb" data-go="clients">← Back to Clients</button>`}
-    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;" class="no-print">
-      <button class="btn sm soft" id="btnStartBlankMeasure" title="Start a brand new blank measurement docket">
-        ＋ New Measurement Docket
-      </button>
-      <button class="btn sm soft" id="btnMeasureNewClient" title="Create a new client and immediately take their measurements">
-        👤＋ New Client
-      </button>
-      <button class="btn sm ${viewMode === "all" ? "navy" : ""}" id="btnToggleViewMode" title="Switch between Full-Page Scroll and Tabbed Sections">
-        ${viewMode === "all" ? "📑 Mode: All Sections" : "🗂 Mode: Tabbed"}
-      </button>
-      <button class="btn sm soft" id="btnTogglePrintPages" title="Choose whether Generate Measurement Sheet prints 1 condensed page or 2 pages (with Visual Diagram Guide)">
-        🖨 Print Format: ${printMode === "2page" ? "2 Pages (Table + Visual Guide)" : "1 Page (Condensed Table Only)"}
-      </button>
-      <button class="btn sm" id="topCopyPrev">⧉ Copy from Previous</button>
-      <button class="btn sm primary" id="topSaveMeasure">💾 Save Measurements &amp; Sync Order</button>
-    </div>
-    <h1 style="width:100%;margin-top:2px;">Client Measurements, Garment Selector &amp; Visual Guide</h1>
+
+    <h1 style="width:100%;margin-top:2px;">Measurements</h1>
   </div>
 
   <!-- CLIENT, EMPLOYEE & CLICKABLE SWATCH DROPDOWN BAR -->
@@ -3484,12 +3415,12 @@ function vMeasure() {
         ${allClients.map(cl => `<option value="${cl.id}" ${cl.id === MREC.clientId ? "selected" : ""}>${esc(cl.name)}${cl.city ? " (" + esc(cl.city) + ")" : ""}</option>`).join("")}
         <option value="__NEW_CLIENT__">＋ Add a New Client…</option>
       </select>
-      <button type="button" class="btn xs soft" id="inlineNewClientBtn" title="Add New Client">＋ New Client</button>
+
     </span>
     <span class="cell">
       Order ID:
       <input id="mOrderNo" value="${esc(MREC.orderNo)}" style="width:125px;" aria-label="Order ID">
-      <button type="button" class="btn xs" id="inlineNewDocketBtn" title="Start a fresh Order ID & Measurement Docket for this client">＋ New Docket</button>
+
     </span>
     <span class="cell">
       📅 Date:
@@ -3511,6 +3442,7 @@ function vMeasure() {
     <span class="cell">
       ✂ Tailor / Measured By:
       <select id="mBy" aria-label="Measured By Employee">
+        <option value="">— Select measured by —</option>
         ${allEmployees.map(emp => `<option value="${esc(emp.name)}" ${emp.name === MREC.measuredBy ? "selected" : ""}>${esc(emp.name)} (${esc(emp.role.split(" ")[0])})</option>`).join("")}
         ${!allEmployees.some(e => e.name === MREC.measuredBy) && MREC.measuredBy ? `<option value="${esc(MREC.measuredBy)}" selected>${esc(MREC.measuredBy)}</option>` : ""}
       </select>
@@ -3524,15 +3456,14 @@ function vMeasure() {
       ${linkedOrder ? `
         <span><b>${esc(linkedOrder.orderNo)}</b></span>
         <span>Stage:
-          <select data-stage="${linkedOrder.id}" style="border:1px solid var(--line-2);border-radius:6px;padding:3px 7px;font-size:12px;font-weight:700;background:#fff;">
-            ${ORDER_STAGES.map(s => `<option ${s === linkedOrder.status ? "selected" : ""}>${s}</option>`).join("")}
-          </select>
+          <b>${esc(linkedOrder.status)}</b>
         </span>
-        <span>✓ <b>${(linkedOrder.workflow || []).filter(s => s.done).length}/9</b> Steps Done</span>
+
+        <span>✓ <b>${(linkedOrder.workflow || []).filter(s => s.done).length}/${(linkedOrder.workflow || []).length}</b> Steps Done</span>
         <span style="color:var(--gold-strong);font-weight:700;">📅 Trial: ${fmtDate(linkedOrder.trialDate)}</span>
         <span>🚚 Delivery: <b>${fmtDate(linkedOrder.delivery)}</b></span>
       ` : `
-        <span style="color:var(--ink-soft);">Not yet in Orders Pipeline — click <b>Save Measurements &amp; Sync Order</b> to create the pipeline order automatically.</span>
+        <span style="color:var(--ink-soft);">Measurement draft only. Create an order separately when the client is ready.</span>
       `}
     </div>
     ${linkedOrder ? `
@@ -3548,17 +3479,17 @@ function vMeasure() {
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div>
         <span style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--gold-strong);">
-          🛍 STEP 1: WHAT ALL DOES THE CLIENT WANT IN THIS ORDER? (CLICK TO SELECT MULTIPLE GARMENTS)
+          Garment sections
         </span>
         <span style="font-size:12px;color:var(--ink-soft);margin-left:6px;">
-          Select Blazer, Kurta, Shirt, Suit, Trouser, etc. — automatically updates the Order Pipeline &amp; Cloth Estimator
+          Choose sections for this docket. Cloth estimates are advisory; order quantities and allocations are managed in Orders.
         </span>
       </div>
       <span class="badge" id="selectedGarmentsSummaryBadge">
         ${MREC.selectedGarments.length ? MREC.selectedGarments.map(g => `${g.qty || 1}× ${g.name}`).join(" + ") : "Click items below"}
       </span>
     </div>
-    <div class="garment-picker-grid" id="measureGarmentPicker">
+    <details class="no-print"><summary>Choose garment sections</summary><div class="garment-picker-grid" id="measureGarmentPicker">
       ${GARMENT_CATALOG.map(g => {
         const found = MREC.selectedGarments.find(x => x.id === g.id || x.name === g.name);
         return `
@@ -3571,11 +3502,11 @@ function vMeasure() {
           </button>
         `;
       }).join("")}
-    </div>
+    </div></details>
   </div>
 
   <!-- SMART FABRIC QUANTITY ESTIMATOR & STOCK AVAILABILITY CHECK (Point 5) -->
-  <div class="card no-print" style="padding:12px 16px;margin-bottom:12px;background:#faf7f0;border:1px solid var(--gold-soft);" id="fabricEstimatorBar">
+  <details class="card no-print" style="padding:12px 16px;margin-bottom:12px;background:#faf7f0;border:1px solid var(--gold-soft);" id="fabricEstimatorBar"><summary>Cloth estimate (advisory)</summary>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <span style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--gold-strong);">
@@ -3609,7 +3540,7 @@ function vMeasure() {
         ) : `<span style="color:var(--ink-soft);">Select a Swatch # to verify stock availability</span>`}
       </span>
     </div>
-  </div>
+  </details>
 
   <!-- QUARTER-INCH PRECISION HELPER BAR -->
   <div class="fraction-bar no-print">
@@ -3627,15 +3558,16 @@ function vMeasure() {
 
   <!-- SECTION TABS -->
   <div class="tabs" id="mtabs">
+    <button class="tab" id="btnToggleViewMode">Show all sections</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "lower" ? "on" : ""}" data-p="lower">1. Lower Body (Trouser)</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "shirt" ? "on" : ""}" data-p="shirt">2. Shirt Measurements</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "upper" ? "on" : ""}" data-p="upper">3. Suit / Upper Body</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "wbs" ? "on" : ""}" data-p="wbs">4. Waistcoat / Bandi / Sherwani</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "vguide" ? "on" : ""}" data-p="vguide">5. Visual Guide &amp; Diagrams</button>
-    <button class="tab ${ACTIVE_MEASURE_TAB === "summary" ? "on" : ""}" data-p="summary" id="tabBtnSummary">6. Condensed Print Sheet (${printMode === "2page" ? "2 Pages" : "1 Page"})</button>
+
   </div>
 
-  <div id="printArea" class="${viewMode === "all" ? "all-view" : ""}">
+  <div id="printArea" class="measurement-sections">
 
     <!-- ================= 1. LOWER BODY (TROUSER) ================= -->
     <section class="panel ${ACTIVE_MEASURE_TAB === "lower" ? "on" : ""}" id="panel-lower">
@@ -3658,21 +3590,21 @@ function vMeasure() {
           <!-- DEDICATED BOW LEG & KNOCK KNEES INCHES + COMMENT BOXES -->
           <div class="stance-callout ${MREC.ticks["Leg Stance"] === "Bow Leg" || MREC.ticks["Leg Stance"] === "Knock Knees" ? "active-highlight" : ""}" id="legStanceCallout">
             <div class="sc-head">
-              <span>🦿 Leg Stance Correction — Inches &amp; Cutter Comments</span>
+              <span>🦿 Leg Stance Correction &amp; Cutter Comments</span>
               <span class="badge" id="stanceActiveBadge">${esc(MREC.ticks["Leg Stance"] || "Regular")}</span>
             </div>
             <div class="grid2" style="gap:8px 12px;">
               <div class="field">
-                <label>Bow Leg — How Many Inches?</label>
-                <input type="number" step="0.01" inputmode="decimal" data-x="bowLegInches" value="${esc(MREC.texts.bowLegInches || "")}" placeholder="e.g. 0.5 or 0.75 in">
+                <label>Bow Leg — Correction (<span class="unitlbl">${esc(MREC.unit)}</span>)</label>
+                <input type="number" step="any" inputmode="decimal" data-x="bowLegInches" value="${esc(MREC.texts.bowLegInches ?? "")}" placeholder="Correction in selected unit">
               </div>
               <div class="field">
                 <label>Bow Leg — Comment Box</label>
                 <input type="text" data-x="bowLegComment" value="${esc(MREC.texts.bowLegComment || "")}" placeholder="Balance / outseam instructions…">
               </div>
               <div class="field">
-                <label>Knock Knees — How Many Inches?</label>
-                <input type="number" step="0.01" inputmode="decimal" data-x="knockKneesInches" value="${esc(MREC.texts.knockKneesInches || "")}" placeholder="e.g. 0.5 or 0.75 in">
+                <label>Knock Knees — Correction (<span class="unitlbl">${esc(MREC.unit)}</span>)</label>
+                <input type="number" step="any" inputmode="decimal" data-x="knockKneesInches" value="${esc(MREC.texts.knockKneesInches ?? "")}" placeholder="Correction in selected unit">
               </div>
               <div class="field">
                 <label>Knock Knees — Comment Box</label>
@@ -3767,8 +3699,8 @@ function vMeasure() {
             <div id="t-upper"></div>
 
             <div class="trow" style="margin-top:6px;">
-              <span class="lbl">Shoulder Down (in)</span>
-              <input type="text" data-x="shoulderDownInches" value="${esc(MREC.texts.shoulderDownInches || "")}" placeholder="How many inches down? e.g. 0.25 or 0.5 in">
+              <span class="lbl">Shoulder Down (<span class="unitlbl">${esc(MREC.unit)}</span>)</span>
+              <input type="number" step="any" inputmode="decimal" data-x="shoulderDownInches" value="${esc(MREC.texts.shoulderDownInches ?? "")}" placeholder="Correction in the selected unit">
             </div>
             <div class="trow">
               <span class="lbl">Suit Swatch #</span>
@@ -3901,33 +3833,17 @@ function vMeasure() {
         <div class="card-title">📝 ATELIER NOTES &amp; CUTTING INSTRUCTIONS</div>
         <textarea class="field" style="width:100%;min-height:95px;border:1px solid var(--line-2);border-radius:7px;padding:10px 12px;font-size:13.5px;" id="mNotes" placeholder="Add special fitting notes, posture remarks, or Karigar instructions…">${esc(MREC.notes)}</textarea>
       </div>
-      <div class="card">
-        <div class="card-title">⚡ QUICK ACTIONS &amp; CONDENSED SHEET OPTIONS</div>
-        <div class="grid2" style="gap:10px;">
-          <button type="button" class="btn" id="qaCopyPrev" style="justify-content:center;">📋 Copy from Previous</button>
-          <button type="button" class="btn danger" id="qaClearAll" style="justify-content:center;">🗑 Clear All</button>
-          <button type="button" class="btn primary full" id="qaPrintSheet" style="grid-column:1 / -1;justify-content:center;padding:11px;">
-            🖨 Generate Condensed Measurement Sheet (${printMode === "2page" ? "2 Pages: Table + Visual Guide" : "1 Page Condensed"})
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- ================= 6. CONDENSED PRINTABLE MEASUREMENT DOCKET (1 OR 2 PAGES) ================= -->
-    <section class="panel ${ACTIVE_MEASURE_TAB === "summary" ? "on" : ""}" id="panel-summary">
-      <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;background:#fff;padding:10px 14px;border-radius:8px;border:1px solid var(--line);">
-        <div>
-          <b style="color:var(--navy);">📄 Condensed Print Preview (A4 Portrait)</b>
-          <span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">
-            Includes Modisto Logo, Atelier Contact Details, Customer Name &amp; Order ID on every page.
-          </span>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" class="btn sm ${printMode === "1page" ? "primary" : ""}" data-set-pmode="1page">1 Page (Condensed Table Only)</button>
-          <button type="button" class="btn sm ${printMode === "2page" ? "primary" : ""}" data-set-pmode="2page">2 Pages (Table + Visual Guide Chart)</button>
-          <button type="button" class="btn sm navy" onclick="window.print()">🖨 Print / Save PDF Now</button>
-        </div>
+    <section class="panel" id="panel-summary">
+      <div class="no-print preview-controls">
+        <button class="btn" id="printNow">Print workshop sheet</button>
+        <button class="btn" data-set-pmode="1page">1 page</button>
+        <button class="btn" data-set-pmode="2page">2 pages with guide</button>
+        <button class="btn" id="closePrintPreview">Close preview</button>
       </div>
+
       <div id="printDocketContainer" class="docket-sheet-wrapper"></div>
     </section>
 
@@ -3976,7 +3892,7 @@ function mountMeasure() {
       row.className = "mrow";
       row.innerHTML = `
         <span class="lbl">${esc(name)}</span>
-        <input type="number" step="0.01" inputmode="decimal" placeholder="0.00" data-m="${esc(name)}" value="${esc(v)}" aria-label="${esc(name)}">
+        <input type="number" step="any" inputmode="decimal" placeholder="0.00" data-m="${esc(name)}" value="${esc(v)}" aria-label="${esc(name)}">
         <span class="unit unitlbl">${esc(MREC.unit)}</span>
       `;
       box.appendChild(row);
@@ -4017,9 +3933,9 @@ function mountMeasure() {
     vgBox.innerHTML = VISUAL_GUIDE_ITEMS.map(item => {
       let val = "";
       if (item.field === "__STANCE_INCHES__") {
-        val = MREC.texts.bowLegInches || MREC.texts.knockKneesInches || "";
+        val = MREC.texts[MREC.ticks["Leg Stance"] === "Knock Knees" ? "knockKneesInches" : "bowLegInches"] ?? "";
       } else {
-        val = MREC.measures[item.field] || (item.altField ? MREC.measures[item.altField] : "") || "";
+        val = MREC.measures[item.field] ?? (item.altField ? MREC.measures[item.altField] : "") ?? "";
       }
       return `
         <div class="vg-card">
@@ -4027,7 +3943,7 @@ function mountMeasure() {
           <div class="vg-svg">${item.svg}</div>
           <div class="vg-inp-row">
             <span class="ulbl unitlbl">${esc(MREC.unit)}</span>
-            <input type="number" step="0.01" inputmode="decimal" placeholder="0.00" data-vg-field="${esc(item.field)}" data-vg-alt="${esc(item.altField || "")}" value="${esc(val)}">
+            <input type="number" step="any" inputmode="decimal" placeholder="0.00" data-vg-field="${esc(item.field)}" data-vg-alt="${esc(item.altField || "")}" value="${esc(val)}">
           </div>
           <div class="vg-desc">${esc(item.desc)}</div>
         </div>
@@ -4171,7 +4087,7 @@ function mountMeasure() {
         MREC.selectedGarments.splice(idx, 1);
         btn.classList.remove("sel");
       } else {
-        MREC.selectedGarments.push({ id: gObj.id, name: gObj.name, qty: 1, swatchCode: MREC.swatchCode || "SW-1042" });
+        MREC.selectedGarments.push({ id: gObj.id, name: gObj.name, qty: 1, swatchCode: MREC.swatchCode || "" });
         btn.classList.add("sel");
       }
       if (MREC.selectedGarments.length > 0) {
@@ -4185,6 +4101,7 @@ function mountMeasure() {
           ? MREC.selectedGarments.map(g => `${g.qty || 1}× ${g.name}`).join(" + ")
           : "Click items below";
       }
+      applyMeasurementSections();
       updateLiveFabricEstimatorUI();
       buildSummary();
     };
@@ -4203,23 +4120,16 @@ function mountMeasure() {
     buildSummary();
   };
   $("#mUnit").onchange = e => {
-    MREC.unit = e.target.value;
-    $$(".unitlbl").forEach(u => u.textContent = MREC.unit);
-    updateLiveFabricEstimatorUI();
-    buildSummary();
+    try {
+      convertMeasurementUnit(MREC, e.target.value);
+      LAST_FOCUSED_INPUT = null;
+      render();
+      toast("Numeric measurements converted to " + MREC.unit + ". Free-text notes retain their written units.");
+    } catch (error) {
+      e.target.value = MREC.unit;
+      toast(error.message);
+    }
   };
-
-  // Start a New Measurement Docket directly from the Measurements page
-  const startFreshDocketForCurrentClient = () => {
-    const curClientId = MREC ? MREC.clientId : Object.keys(DB.clients)[0];
-    MREC = blankMeasure(curClientId);
-    render();
-    mountMeasure();
-    toast("Started new blank Measurement Docket (" + MREC.orderNo + ")");
-  };
-  if ($("#btnStartBlankMeasure")) $("#btnStartBlankMeasure").onclick = () => pickClientModal();
-  if ($("#inlineNewDocketBtn")) $("#inlineNewDocketBtn").onclick = startFreshDocketForCurrentClient;
-  if ($("#abNewMeasure")) $("#abNewMeasure").onclick = () => pickClientModal();
 
   // Fabric Estimator controls inside Measurements
   const estGarSel = $("#estGarmentSelect");
@@ -4250,79 +4160,54 @@ function mountMeasure() {
     render();
     mountMeasure();
   };
-  if ($("#btnMeasureNewClient")) {
-    $("#btnMeasureNewClient").onclick = () => clientModal(null, true);
-  }
-  if ($("#inlineNewClientBtn")) {
-    $("#inlineNewClientBtn").onclick = () => clientModal(null, true);
-  }
-
-  // Toggle View Mode (All-in-One Scroll vs Tabs)
-  const btnMode = $("#btnToggleViewMode");
-  if (btnMode) {
-    btnMode.onclick = () => {
-      DB.settings.viewMode = DB.settings.viewMode === "all" ? "tabs" : "all";
-      persist();
-      render();
-      mountMeasure();
-    };
-  }
+  $("#btnToggleViewMode").onclick = () => {
+    MEASURE_ALL_SECTIONS = !MEASURE_ALL_SECTIONS;
+    applyMeasurementSections();
+  };
 
   // Toggle 1-Page vs 2-Page Print Format WITHOUT jumping back to Tab 1 (Point 7 Fix!)
   const applyPrintModeInPlace = (newMode) => {
     DB.settings.printPagesMode = newMode;
     persist();
     const label = newMode === "2page" ? "2 Pages (Table + Visual Guide)" : "1 Page (Condensed Table Only)";
-    if ($("#btnTogglePrintPages")) $("#btnTogglePrintPages").textContent = "🖨 Print Format: " + label;
-    if ($("#tabBtnSummary")) $("#tabBtnSummary").textContent = `6. Condensed Print Sheet (${newMode === "2page" ? "2 Pages" : "1 Page"})`;
-    if ($("#qaPrintSheet")) $("#qaPrintSheet").textContent = `🖨 Generate Condensed Measurement Sheet (${newMode === "2page" ? "2 Pages: Table + Visual Guide" : "1 Page Condensed"})`;
     $$("[data-set-pmode]").forEach(b => b.classList.toggle("primary", b.dataset.setPmode === newMode));
     buildSummary();
     toast(`Print Sheet set to ${label}`);
   };
 
-  const btnPMode = $("#btnTogglePrintPages");
-  if (btnPMode) {
-    btnPMode.onclick = () => {
-      const next = DB.settings.printPagesMode === "2page" ? "1page" : "2page";
-      applyPrintModeInPlace(next);
-    };
-  }
   $$("[data-set-pmode]").forEach(b => b.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    ACTIVE_MEASURE_TAB = "summary";
     applyPrintModeInPlace(b.dataset.setPmode);
   });
 
-  // Section Tabs navigation (remembering ACTIVE_MEASURE_TAB)
-  $$("#mtabs .tab").forEach(t => t.onclick = () => {
+  $$("#mtabs .tab[data-p]").forEach(t => t.onclick = () => {
     ACTIVE_MEASURE_TAB = t.dataset.p;
-    $$("#mtabs .tab").forEach(x => x.classList.toggle("on", x === t));
-    if (DB.settings.viewMode === "all") {
-      const target = $("#panel-" + t.dataset.p);
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      $$(".panel").forEach(p => p.classList.toggle("on", p.id === "panel-" + t.dataset.p));
-    }
-    buildSummary();
+    applyMeasurementSections();
+    $("#panel-" + t.dataset.p).scrollIntoView({ behavior: "smooth", block: "start" });
   });
-
-  // Bind Save, Copy from Previous, Clear All, and Generate Condensed Print Sheet buttons
-  const triggerPrintSheet = () => {
+  $("#abSave").onclick = saveMeasure;
+  $("#abNewClient").onclick = () => clientModal(null, true);
+  $("#abPrint").onclick = () => {
+    PRINT_PREVIEW_OPEN = true;
     buildSummary();
-    window.print();
+    applyMeasurementSections();
+    $("#panel-summary").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("#printNow").focus({ preventScroll: true });
   };
-
-  if ($("#abSave")) $("#abSave").onclick = saveMeasure;
-  if ($("#topSaveMeasure")) $("#topSaveMeasure").onclick = saveMeasure;
-  if ($("#abPrint")) $("#abPrint").onclick = triggerPrintSheet;
-  if ($("#qaPrintSheet")) $("#qaPrintSheet").onclick = triggerPrintSheet;
-  if ($("#abCopyPrev")) $("#abCopyPrev").onclick = () => ACTIONS.copyPrev();
-  if ($("#topCopyPrev")) $("#topCopyPrev").onclick = () => ACTIONS.copyPrev();
-  if ($("#qaCopyPrev")) $("#qaCopyPrev").onclick = () => ACTIONS.copyPrev();
-  if ($("#abClearAll")) $("#abClearAll").onclick = () => ACTIONS.clearMeasure();
-  if ($("#qaClearAll")) $("#qaClearAll").onclick = () => ACTIONS.clearMeasure();
+  $("#printNow").onclick = () => { buildSummary(); window.print(); };
+  $("#closePrintPreview").onclick = () => {
+    PRINT_PREVIEW_OPEN = false;
+    applyMeasurementSections();
+    $("#abPrint").focus();
+  };
+  $("#abCopyPrev").onclick = () => ACTIONS.copyPrev();
+  $("#abClearAll").onclick = () => ACTIONS.clearMeasure();
+  $("#abNewMeasure").onclick = () => pickClientModal();
+  LAST_FOCUSED_INPUT = null;
+  $$(".fraction-bar .fbtn").forEach(b => b.disabled = MREC.unit === "cm");
+  $("#focusedFieldLabel").textContent = MREC.unit === "cm" ? "Metric entry: type decimals directly. Fraction buttons apply in inches." : "Focus a measurement, then choose a fraction.";
+  applyMeasurementSections();
 
   if ($("#status")) {
     $("#status").textContent = MREC.savedAt
@@ -4330,6 +4215,10 @@ function mountMeasure() {
       : "New measurement docket — click Save Measurements when done";
   }
 
+  const markDirty = () => { $("#status").textContent = "Unsaved measurement changes · " + MREC.orderNo; };
+  $("#main").oninput = markDirty;
+  $("#main").onchange = markDirty;
+  $$(".seg button[data-t], button[data-mat-t], #measureGarmentPicker [data-gp-id]").forEach(button => button.addEventListener("click", markDirty));
   buildSummary();
 }
 
@@ -4337,7 +4226,7 @@ function buildDocketHeaderHTML(pageNum, totalPages) {
   const c = DB.clients[MREC.clientId] || {};
   const sw = getSwatchByCode(MREC.swatchCode);
   const line1 = (DB.settings && DB.settings.atelierContactLine1) || "Mumbai Atelier: Andheri West · London Studio: Northwood";
-  const line2 = (DB.settings && DB.settings.atelierContactLine2) || "📞 +91 98200 45100 · +44 20 7946 0192 · ✉ atelier@modistobespoke.com · www.modistobespoke.com";
+  const line2 = DB.settings?.atelierContactLine2 ?? "";
 
   return `
     <div class="docket-banner">
@@ -4383,7 +4272,7 @@ function buildDocketHeaderHTML(pageNum, totalPages) {
         </div>
         <div class="dcb-cell">
           <span class="dcb-lbl">Posture / Stance</span>
-          <span class="dcb-val">${esc(MREC.ticks["Leg Stance"] || "Regular")}${MREC.texts.bowLegInches ? ` (${MREC.texts.bowLegInches}")` : ""}${MREC.texts.knockKneesInches ? ` (${MREC.texts.knockKneesInches}")` : ""}</span>
+          <span class="dcb-val">${esc(MREC.ticks["Leg Stance"] || "Regular")}${MREC.texts.bowLegInches ? ` (${esc(MREC.texts.bowLegInches)} ${esc(MREC.unit)})` : ""}${MREC.texts.knockKneesInches ? ` (${esc(MREC.texts.knockKneesInches)} ${esc(MREC.unit)})` : ""}</span>
         </div>
       </div>
     </div>
@@ -4415,8 +4304,8 @@ function buildSummary() {
   // Column 1: Trouser / Lower Body
   const col1Ticks = [
     ["Leg Stance", MREC.ticks["Leg Stance"] || "Regular"],
-    ["Bow Leg (in)", MREC.texts.bowLegInches ? MREC.texts.bowLegInches + " " + u : "—"],
-    ["Knock Knees (in)", MREC.texts.knockKneesInches ? MREC.texts.knockKneesInches + " " + u : "—"],
+    ["Bow Leg", MREC.texts.bowLegInches ? MREC.texts.bowLegInches + " " + u : "—"],
+    ["Knock Knees", MREC.texts.knockKneesInches ? MREC.texts.knockKneesInches + " " + u : "—"],
     ["Forward Stance", MREC.ticks["Forward Stance"] || "—"],
     ["Pleats / Gurkha", (MREC.ticks["Pleats"] || "—") + " / " + (MREC.ticks["Gurkha Trouser"] || "N")],
     ["Back / Watch Pkt", (MREC.ticks["Back Pockets"] || "2") + " / " + (MREC.ticks["Watch Pockets"] || "N")],
@@ -4435,7 +4324,7 @@ function buildSummary() {
 
   // Column 3: Suit / Upper Body
   const col3Ticks = [
-    ["Shoulder Down", (MREC.ticks["Shoulder Down"] || "Regular") + (MREC.texts.shoulderDownInches ? " (" + MREC.texts.shoulderDownInches + "\")" : "")],
+    ["Shoulder Down", (MREC.ticks["Shoulder Down"] || "Regular") + (MREC.texts.shoulderDownInches ? " (" + MREC.texts.shoulderDownInches + " " + u + ")" : "")],
     ["Hunchback", MREC.ticks["Hunchback"] || "No"],
     ["Suit Style", MREC.ticks["Suit Style"] || "2 Button"],
     ["Vents / Lapel", (MREC.ticks["Vents"] || "Side Vents") + " · " + (MREC.ticks["Lapel"] || "Notch")],
@@ -4527,8 +4416,8 @@ function buildSummary() {
         const inches = MREC.texts.bowLegInches || MREC.texts.knockKneesInches || "0";
         val = `${st} (${inches} ${u})`;
       } else {
-        const raw = MREC.measures[item.field] || (item.altField ? MREC.measures[item.altField] : "");
-        val = raw ? `${raw} ${u}` : "—";
+        const raw = MREC.measures[item.field] ?? (item.altField ? MREC.measures[item.altField] : "");
+        val = raw != null && raw !== "" ? `${raw} ${u}` : "—";
       }
       return `
         <div class="vg-card">
@@ -4623,93 +4512,31 @@ function flatOrder(o) {
 }
 
 async function saveMeasure() {
-  if (!Object.keys(MREC.measures).length && !Object.keys(MREC.ticks).length) {
-    toast("Enter at least one measurement or option before saving.");
+  if (!DB.clients[MREC.clientId]) { toast("Choose a client before saving."); return; }
+  const snapshot = JSON.parse(JSON.stringify(MREC));
+  snapshot.savedAt = new Date().toISOString();
+  let next;
+  try {
+    const latest = latestDatabaseForMeasurementSave();
+    if (JSON.stringify(latest.measurements[snapshot.id] || null) !== JSON.stringify(DB.measurements[snapshot.id] || null)) {
+      throw new Error("This docket changed in another tab. Copy your draft notes, then reload the saved docket before retrying.");
+    }
+    next = { ...latest, measurements: { ...latest.measurements, [snapshot.id]: snapshot } };
+    writeDatabase(next);
+  } catch (e) {
+    $("#status").textContent = "Save failed — draft retained. " + e.message;
+    toast("Measurement save failed. " + e.message);
     return;
   }
-  MREC.savedAt = new Date().toISOString();
-  DB.measurements[MREC.id] = JSON.parse(JSON.stringify(MREC));
-
-  // Sync Client Posture profile from this Measurement Docket
-  const cl = DB.clients[MREC.clientId];
-  if (cl && MREC.ticks) {
-    const stance = MREC.ticks["Leg Stance"] || "Regular";
-    const bowIn = MREC.texts?.bowLegInches ? ` (${MREC.texts.bowLegInches}")` : "";
-    const knockIn = MREC.texts?.knockKneesInches ? ` (${MREC.texts.knockKneesInches}")` : "";
-    const shDown = MREC.ticks["Shoulder Down"] && MREC.ticks["Shoulder Down"] !== "Regular"
-      ? `, ${MREC.ticks["Shoulder Down"]}${MREC.texts?.shoulderDownInches ? ` (${MREC.texts.shoulderDownInches}")` : ""}`
-      : "";
-    cl.posture = `${stance}${bowIn}${knockIn}${shDown}`;
+  DB = next;
+  MREC.savedAt = snapshot.savedAt;
+  $("#status").textContent = "Saved locally · " + MREC.orderNo + " · " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  toast("Measurements saved locally");
+  // An opaque no-cors response cannot acknowledge a Sheets write.
+  if (DB.settings.appsScriptUrl) {
+    const sent = await pushToSheets("Measurements", flatMeasure(snapshot));
+    toast(sent ? "Saved locally; Sheets export sent (unconfirmed)." : "Saved locally; Sheets export failed.");
   }
-
-  // Automatically create or update the corresponding Order in DB.orders so it always shows in Orders & Pipeline!
-  const fabEst = estimateFabricFromMeasurements(MREC, MREC.estGarmentType || "2-Piece Bespoke Suit", MREC.estSetCount || 1);
-  const gSummary = (MREC.selectedGarments && MREC.selectedGarments.length)
-    ? MREC.selectedGarments.map(g => `${(g.qty || 1) > 1 ? g.qty + "× " : ""}${g.name}`).join(" + ")
-    : (MREC.estGarmentType || "2-Piece Bespoke Suit");
-  const sw = getSwatchByCode(MREC.swatchCode);
-
-  let existingOrder = Object.values(DB.orders).find(o =>
-    (o.orderNo || "").trim().toUpperCase() === (MREC.orderNo || "").trim().toUpperCase()
-  );
-
-  if (existingOrder) {
-    existingOrder.clientId = MREC.clientId;
-    existingOrder.swatchCode = MREC.swatchCode || existingOrder.swatchCode;
-    if (sw) {
-      existingOrder.fabric = `${sw.code} · ${sw.book} (${sw.colorName})`;
-      existingOrder.fabricRate = sw.costPerMeter;
-    }
-    existingOrder.assignedTo = MREC.measuredBy || existingOrder.assignedTo;
-    existingOrder.garments = gSummary || existingOrder.garments;
-    existingOrder.fabricMeters = fabEst.totalMeters;
-    syncOrderStageToWorkflow(existingOrder, existingOrder.status);
-  } else {
-    const ordDate = MREC.date || new Date().toISOString().slice(0, 10);
-    const trialD = new Date(ordDate + "T00:00:00");
-    trialD.setDate(trialD.getDate() + 10);
-    const delivD = new Date(ordDate + "T00:00:00");
-    delivD.setDate(delivD.getDate() + 18);
-    const newOrdId = uid("o");
-    const newOrd = {
-      id: newOrdId,
-      clientId: MREC.clientId,
-      orderNo: MREC.orderNo,
-      date: ordDate,
-      trialDate: trialD.toISOString().slice(0, 10),
-      delivery: delivD.toISOString().slice(0, 10),
-      garments: gSummary,
-      swatchCode: MREC.swatchCode || "SW-1042",
-      fabric: sw ? `${sw.code} · ${sw.book} (${sw.colorName})` : (MREC.swatchCode || "Bespoke Cloth"),
-      liningCode: "Bemberg Cupro",
-      assignedTo: MREC.measuredBy || "Susheel Racherla",
-      karigarAssigned: "Ramesh Master",
-      status: "Cutting",
-      estDays: 14,
-      actualDays: 5,
-      estHours: 28,
-      hoursSpent: 6,
-      painPointNote: "Measurement docket completed — pattern & cloth cutting in progress",
-      fabricMeters: fabEst.totalMeters,
-      fabricRate: sw ? sw.costPerMeter : 8500,
-      trimsCost: 4500,
-      cutterCost: 6000,
-      karigarCost: 9000,
-      trialShippingCost: 1500,
-      amount: 95000,
-      advancePaid: 50000,
-      notes: MREC.notes || ""
-    };
-    syncOrderStageToWorkflow(newOrd, "Cutting");
-    DB.orders[newOrdId] = newOrd;
-  }
-
-  persist();
-  const pushed = await pushToSheets("Measurements", flatMeasure(MREC));
-  toast(pushed ? "Saved & synced to Google Sheets" : "Measurement Docket, Client Posture & Order Pipeline synced (" + MREC.orderNo + ")");
-  render();
-  mountMeasure();
-  if ($("#status")) $("#status").textContent = "Saved & Synced to Orders · " + MREC.orderNo + " at " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 /* ============================================================================
@@ -4742,7 +4569,7 @@ function orderRows(q, stageFilter) {
       </td>
       <td>
         <b>${esc(o._c ? o._c.name : "—")}</b>
-        <div style="font-size:11.5px;color:var(--ink-soft);">✂ ${esc(o.assignedTo || "Susheel Racherla")}${o.karigarAssigned ? ` · 🧵 ${esc(o.karigarAssigned)}` : ""}</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);">✂ ${esc(o.assignedTo || "Unassigned")}${o.karigarAssigned ? ` · 🧵 ${esc(o.karigarAssigned)}` : ""}</div>
       </td>
       <td>
         <div style="font-weight:600;">${esc(o.garments || "")}</div>
@@ -5448,7 +5275,7 @@ function vSettings() {
         </div>
         <div class="field full">
           <label>Phone, Email &amp; Website (Line 2 on Print Header)</label>
-          <input type="text" id="setContact2" value="${esc(s.atelierContactLine2 || "")}" placeholder="📞 +91 98200 45100 · ✉ atelier@modistobespoke.com · www.modistobespoke.com">
+          <input type="text" id="setContact2" value="${esc(s.atelierContactLine2 || "")}" placeholder="Atelier phone, email and website">
         </div>
         <div class="field">
           <label>Default "Measured By" Tailor</label>
@@ -5501,7 +5328,8 @@ function vSettings() {
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn" data-act="exportDb">⬇ Export Database (JSON)</button>
           <button class="btn" data-act="importDb">⬆ Import Database</button>
-          <button class="btn soft" data-act="resetSeed">↺ Restore Sample Data</button>
+          <button class="btn" data-act="exportRecovery">Download pre-change backup</button>
+          <button class="btn soft" data-act="resetSeed">Open separate demo workspace</button>
           <button class="btn danger" data-act="wipeDb">🗑 Erase All Data</button>
         </div>
         <input type="file" id="importFile" accept="application/json" style="display:none;">
@@ -5531,11 +5359,11 @@ function clientModal(c, startMeasureOnSave = false) {
     <div class="grid3">
       <div class="field">
         <label class="req">Full Name</label>
-        <input id="cmName" value="${esc(c.name || "")}" placeholder="e.g. Rajiv Mehta">
+        <input id="cmName" value="${esc(c.name || "")}" placeholder="Full name">
       </div>
       <div class="field">
         <label>Company / Organisation</label>
-        <input id="cmCompany" value="${esc(c.company || "")}" placeholder="e.g. Mehta Capital Advisors">
+        <input id="cmCompany" value="${esc(c.company || "")}" placeholder="Company or organisation">
       </div>
       <div class="field">
         <label>Designation / Title</label>
@@ -5543,11 +5371,11 @@ function clientModal(c, startMeasureOnSave = false) {
       </div>
       <div class="field">
         <label>Phone / WhatsApp</label>
-        <input id="cmPhone" type="tel" value="${esc(c.phone || "")}" placeholder="+91 98200 … or +44 …">
+        <input id="cmPhone" type="tel" value="${esc(c.phone || "")}" placeholder="Phone with country code">
       </div>
       <div class="field">
         <label>Email ID</label>
-        <input id="cmEmail" type="email" value="${esc(c.email || "")}" placeholder="client@company.com">
+        <input id="cmEmail" type="email" value="${esc(c.email || "")}" placeholder="client@example.com">
       </div>
       <div class="field">
         <label>Birthday</label>
@@ -5647,7 +5475,7 @@ function employeeModal(emp) {
     <div class="grid2">
       <div class="field">
         <label class="req">Employee / Tailor Name</label>
-        <input id="emName" value="${esc(emp.name || "")}" placeholder="e.g. Arjun Mehta, Salim Bhai">
+        <input id="emName" value="${esc(emp.name || "")}" placeholder="Employee name">
       </div>
       <div class="field">
         <label class="req">Role / Designation</label>
@@ -5748,29 +5576,29 @@ function orderModal(o, clientId) {
       </div>
       <div class="field">
         <label>Master Cutter / Tailor</label>
-        <select id="omAssigned">
-          ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === (o.assignedTo || DB.settings.measuredByDefault) ? "selected" : ""}>${esc(e.name)} (${esc(e.role.split(" ")[0])})</option>`).join("")}
+        <select id="omAssigned"><option value="">— Unassigned —</option>
+          ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === o.assignedTo ? "selected" : ""}>${esc(e.name)} (${esc(e.role.split(" ")[0])})</option>`).join("")}
         </select>
       </div>
       <div class="field">
         <label>Stitching Karigar Assigned</label>
         <select id="omKarigar">
           <option value="">— Select Karigar —</option>
-          ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === (o.karigarAssigned || "Ramesh Master") ? "selected" : ""}>${esc(e.name)} (${esc(e.role)})</option>`).join("")}
+          ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === o.karigarAssigned ? "selected" : ""}>${esc(e.name)} (${esc(e.role)})</option>`).join("")}
         </select>
       </div>
       <div class="field">
         <label>Estimated Days</label>
-        <input id="omEstDays" type="number" step="1" value="${esc(o.estDays ?? 14)}">
+        <input id="omEstDays" type="number" step="1" value="${esc(o.estDays ?? "")}">
       </div>
       <div class="field">
         <label>Actual / Elapsed Days</label>
-        <input id="omActDays" type="number" step="1" value="${esc(o.actualDays ?? 14)}">
+        <input id="omActDays" type="number" step="1" value="${esc(o.actualDays ?? "")}">
       </div>
       <div class="field full">
         <label>Garments Ordered</label>
         <div style="display:flex;gap:8px;">
-          <input id="omGarments" list="garmentDatalist" value="${esc(o.garments || "2-Piece Bespoke Suit")}" placeholder="e.g. 2-Piece Bespoke Suit + 2 Bespoke Shirts">
+          <input id="omGarments" list="garmentDatalist" value="${esc(o.garments || "")}" placeholder="e.g. 2-Piece Bespoke Suit + 2 Bespoke Shirts">
           <button type="button" class="btn sm soft" id="btnAutoEstCloth" title="Estimate fabric meters from this client's body measurements">📏 Auto-Estimate Cloth</button>
         </div>
         <datalist id="garmentDatalist">
@@ -5805,43 +5633,43 @@ function orderModal(o, clientId) {
       <div class="grid3">
         <div class="field">
           <label>Cloth Required (Meters)</label>
-          <input id="omMeters" type="number" step="0.05" value="${esc(o.fabricMeters ?? 3.5)}">
+          <input id="omMeters" type="number" step="0.05" value="${esc(o.fabricMeters ?? "")}">
         </div>
         <div class="field">
           <label>Cloth Cost / Meter (₹)</label>
-          <input id="omRate" type="number" step="50" value="${esc(o.fabricRate ?? 8500)}">
+          <input id="omRate" type="number" step="50" value="${esc(o.fabricRate ?? "")}">
         </div>
         <div class="field">
           <label>Canvas, Lining &amp; Trims (₹)</label>
-          <input id="omTrims" type="number" step="100" value="${esc(o.trimsCost ?? 4500)}">
+          <input id="omTrims" type="number" step="100" value="${esc(o.trimsCost ?? "")}">
         </div>
         <div class="field">
           <label>Master Cutter Cost (₹)</label>
-          <input id="omCutter" type="number" step="100" value="${esc(o.cutterCost ?? 6000)}">
+          <input id="omCutter" type="number" step="100" value="${esc(o.cutterCost ?? "")}">
         </div>
         <div class="field">
           <label>Karigar / Stitching Cost (₹)</label>
-          <input id="omKarigarCost" type="number" step="100" value="${esc(o.karigarCost ?? 9000)}">
+          <input id="omKarigarCost" type="number" step="100" value="${esc(o.karigarCost ?? "")}">
         </div>
         <div class="field">
           <label>Trial / Shipping Cost (₹)</label>
-          <input id="omShip" type="number" step="100" value="${esc(o.trialShippingCost ?? 1500)}">
+          <input id="omShip" type="number" step="100" value="${esc(o.trialShippingCost ?? "")}">
         </div>
         <div class="field">
           <label>Estimated Craft Hours</label>
-          <input id="omEstHours" type="number" step="1" value="${esc(o.estHours ?? 28)}">
+          <input id="omEstHours" type="number" step="1" value="${esc(o.estHours ?? "")}">
         </div>
         <div class="field">
           <label>Actual Craft Hours Spent</label>
-          <input id="omHours" type="number" step="1" value="${esc(o.hoursSpent ?? 30)}">
+          <input id="omHours" type="number" step="1" value="${esc(o.hoursSpent ?? "")}">
         </div>
         <div class="field">
           <label class="req">Client Quoted Price (₹)</label>
-          <input id="omAmount" type="number" step="500" value="${esc(o.amount ?? 95000)}">
+          <input id="omAmount" type="number" step="500" value="${esc(o.amount ?? "")}">
         </div>
         <div class="field">
           <label>Advance Received (₹)</label>
-          <input id="omAdvance" type="number" step="500" value="${esc(o.advancePaid ?? 50000)}">
+          <input id="omAdvance" type="number" step="500" value="${esc(o.advancePaid ?? "")}">
         </div>
         <div class="field full" style="grid-column: span 2;">
           <label>Bottleneck / Pain Point Note (If Delayed)</label>
@@ -5864,7 +5692,7 @@ function orderModal(o, clientId) {
   `);
 
   const updateLiveCalc = () => {
-    const reqM = parseFloat($("#omMeters").value) || 0;
+    const reqM = $("#omMeters").value === "" ? null : Number($("#omMeters").value);
     const swCode = $("#omSwatch").value;
     const sw = getSwatchByCode(swCode);
     const stockBox = $("#omStockAlertBox");
@@ -5949,11 +5777,13 @@ function orderModal(o, clientId) {
   }
 
   $("#omSave").onclick = () => {
+    if (!DB.clients[$("#omClient").value]) { toast("Choose a client before creating an order."); return; }
     const ordDate = $("#omDate").value;
     const statusVal = $("#omStatus").value;
     const cutterVal = $("#omAssigned").value;
     const karigarVal = $("#omKarigar").value;
     const rec = {
+      ...o,
       id: o.id || uid("o"),
       clientId: $("#omClient").value,
       orderNo: $("#omNo").value.trim(),
@@ -5963,23 +5793,23 @@ function orderModal(o, clientId) {
       delivery: $("#omDeliver").value,
       assignedTo: cutterVal,
       karigarAssigned: karigarVal,
-      estDays: parseFloat($("#omEstDays").value) || 14,
-      actualDays: parseFloat($("#omActDays").value) || 14,
-      estHours: parseFloat($("#omEstHours").value) || 28,
-      hoursSpent: parseFloat($("#omHours").value) || 0,
+      estDays: $("#omEstDays").value === "" ? null : Number($("#omEstDays").value),
+      actualDays: $("#omActDays").value === "" ? null : Number($("#omActDays").value),
+      estHours: $("#omEstHours").value === "" ? null : Number($("#omEstHours").value),
+      hoursSpent: $("#omHours").value === "" ? null : Number($("#omHours").value),
       painPointNote: $("#omPainPoint").value.trim(),
       garments: $("#omGarments").value.trim(),
       swatchCode: $("#omSwatch").value,
       fabric: $("#omFabric").value.trim(),
       liningCode: $("#omLining").value.trim(),
-      fabricMeters: parseFloat($("#omMeters").value) || 0,
-      fabricRate: parseFloat($("#omRate").value) || 0,
-      trimsCost: parseFloat($("#omTrims").value) || 0,
-      cutterCost: parseFloat($("#omCutter").value) || 0,
-      karigarCost: parseFloat($("#omKarigarCost").value) || 0,
-      trialShippingCost: parseFloat($("#omShip").value) || 0,
-      amount: parseFloat($("#omAmount").value) || 0,
-      advancePaid: parseFloat($("#omAdvance").value) || 0,
+      fabricMeters: $("#omMeters").value === "" ? null : Number($("#omMeters").value),
+      fabricRate: $("#omRate").value === "" ? null : Number($("#omRate").value),
+      trimsCost: $("#omTrims").value === "" ? null : Number($("#omTrims").value),
+      cutterCost: $("#omCutter").value === "" ? null : Number($("#omCutter").value),
+      karigarCost: $("#omKarigarCost").value === "" ? null : Number($("#omKarigarCost").value),
+      trialShippingCost: $("#omShip").value === "" ? null : Number($("#omShip").value),
+      amount: $("#omAmount").value === "" ? null : Number($("#omAmount").value),
+      advancePaid: $("#omAdvance").value === "" ? null : Number($("#omAdvance").value),
       notes: $("#omNotes").value.trim(),
       workflow: o.workflow
     };
@@ -6007,8 +5837,8 @@ function orderModal(o, clientId) {
 
 /* ---------------- SEQUENCE OF EVENTS & TRIAL TRACKER MODAL ---------------- */
 function sequenceModal(orderId) {
-  const o = DB.orders[orderId];
-  if (!o) return;
+  if (!DB.orders[orderId]) return;
+  const o = JSON.parse(JSON.stringify(DB.orders[orderId]));
   const c = DB.clients[o.clientId] || {};
   const allEmployees = Object.values(DB.employees || {});
   if (!o.workflow || !Array.isArray(o.workflow)) {
@@ -6092,6 +5922,8 @@ function sequenceModal(orderId) {
             </div>
             <div>
               <select class="seq-emp" data-idx="${idx}" style="border:1px solid var(--line-2);border-radius:5px;padding:4px 6px;font-size:12px;width:100%;background:#fff;">
+                <option value="">— Unassigned —</option>
+                ${st.assignedTo && !allEmployees.some(e => e.name === st.assignedTo) ? `<option selected value="${esc(st.assignedTo)}">${esc(st.assignedTo)}</option>` : ""}
                 ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === st.assignedTo ? "selected" : ""}>${esc(e.name)}</option>`).join("")}
               </select>
             </div>
@@ -6152,11 +5984,12 @@ function sequenceModal(orderId) {
     $("#seqStageQuickSelect").onchange = e => {
       syncFieldEditsFromDOM();
       syncOrderStageToWorkflow(o, e.target.value);
+      DB.orders[o.id] = JSON.parse(JSON.stringify(o));
       persist();
       renderModalContent();
     };
 
-    // Sequential Checkbox Click: ticking step K marks 0..K done; unticking step K marks K..end pending
+    // Only the explicitly checked task changes completion state.
     $$(".seq-chk").forEach(chk => {
       chk.onchange = () => {
         syncFieldEditsFromDOM();
@@ -6164,45 +5997,32 @@ function sequenceModal(orderId) {
         const isChecking = chk.checked;
         const todayStr = new Date().toISOString().slice(0, 10);
 
-        o.workflow.forEach((step, idx) => {
-          if (isChecking && idx <= clickedIdx) {
-            if (!step.done) {
-              step.done = true;
-              if (!step.doneDate) step.doneDate = todayStr;
-              if (step.daysTaken === "" || isNaN(parseFloat(step.daysTaken))) {
-                step.daysTaken = (WORKFLOW_TEMPLATE[idx] && WORKFLOW_TEMPLATE[idx].defaultDays) || 1;
-              }
-            }
-          } else if (!isChecking && idx >= clickedIdx) {
-            step.done = false;
-            step.doneDate = "";
-            step.daysTaken = "";
-          }
-        });
+        const step = o.workflow[clickedIdx];
+        step.done = isChecking;
+        step.doneDate = isChecking ? (step.doneDate || todayStr) : "";
+        if (!isChecking) step.daysTaken = "";
 
         const firstPending = o.workflow.find(s => !s.done);
         o.status = firstPending ? firstPending.stage : "Delivered";
         const sumDays = o.workflow.reduce((acc, s) => acc + (s.done ? (parseFloat(s.daysTaken) || 0) : 0), 0);
-        o.actualDays = Math.max(1, sumDays || 1);
+        o.actualDays = sumDays;
+        DB.orders[o.id] = JSON.parse(JSON.stringify(o));
         persist();
         renderModalContent();
       };
     });
 
     $("#seqOpenDocketBtn").onclick = () => {
-      syncFieldEditsFromDOM();
-      persist();
       closeModal();
       ACTIONS.openMeasureByOrder(o.id);
     };
     $("#seqClose").onclick = () => {
-      syncFieldEditsFromDOM();
-      persist();
       closeModal();
       render();
     };
     $("#seqSave").onclick = () => {
       syncFieldEditsFromDOM();
+      DB.orders[o.id] = JSON.parse(JSON.stringify(o));
       persist();
       closeModal();
       toast(`Synced sequence & stage for ${o.orderNo} → ${o.status}`);
@@ -6234,23 +6054,23 @@ function enquiryWizardModal() {
       </div>
       <div class="field">
         <label>Primary Swatch #</label>
-        <select id="eqSwatch">
+        <select id="eqSwatch"><option value="">— Select swatch —</option>
           ${allSwatches.map(s => `<option value="${esc(s.code)}">${esc(s.code)} · ${esc(s.colorName)} (${s.stockMeters}m)</option>`).join("")}
         </select>
       </div>
       <div class="field">
         <label>Measured By / Tailor</label>
-        <select id="eqTailor">
+        <select id="eqTailor"><option value="">— Select measured by —</option>
           ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === DB.settings.measuredByDefault ? "selected" : ""}>${esc(e.name)}</option>`).join("")}
         </select>
       </div>
       <div class="field">
         <label>📅 Scheduled 1st Trial Date</label>
-        <input type="date" id="eqTrialDate" value="${new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10)}">
+        <input type="date" id="eqTrialDate" value="">
       </div>
       <div class="field">
         <label>🚚 Promised Delivery Date</label>
-        <input type="date" id="eqDeliveryDate" value="${new Date(Date.now() + 18 * 86400000).toISOString().slice(0, 10)}">
+        <input type="date" id="eqDeliveryDate" value="">
       </div>
       <div class="field" style="justify-content:flex-end;">
         <button type="button" class="btn sm soft" id="eqNewClientBtn">👤＋ Create New Client First</button>
@@ -6301,6 +6121,7 @@ function enquiryWizardModal() {
       return;
     }
     const cid = $("#eqClient").value;
+    if (!DB.clients[cid]) { toast("Choose a client before creating an order."); return; }
     const swCode = $("#eqSwatch").value;
     const tailor = $("#eqTailor").value;
     const trialDate = $("#eqTrialDate").value;
@@ -6332,25 +6153,17 @@ function enquiryWizardModal() {
       garments: selectedList.map(x => x.name).join(" + "),
       swatchCode: swCode,
       fabric: sw ? `${sw.code} · ${sw.book} (${sw.colorName})` : swCode,
-      liningCode: "Bemberg Cupro",
+      liningCode: "",
       assignedTo: tailor,
-      karigarAssigned: "Ramesh Master",
+      karigarAssigned: "",
       status: "New",
-      estDays: 14,
-      actualDays: 1,
-      estHours: 28,
-      hoursSpent: 1,
-      painPointNote: "Enquiry logged — taking client measurements",
-      fabricMeters: Math.round(estMeters * 20) / 20,
-      fabricRate: sw ? sw.costPerMeter : 8500,
-      trimsCost: 4500,
-      cutterCost: 6000,
-      karigarCost: 9000,
-      trialShippingCost: 1500,
-      amount: 95000,
-      advancePaid: 50000,
+      estDays: null, actualDays: null, estHours: null, hoursSpent: null,
+      fabricMeters: null, fabricRate: null, trimsCost: null, cutterCost: null,
+      karigarCost: null, trialShippingCost: null, amount: null, advancePaid: null,
+      estimatedFabricMeters: Math.round(estMeters * 20) / 20,
       notes: "",
-      workflow: buildDefaultWorkflow(todayStr, "New", tailor, "Ramesh Master")
+      workflow: buildDefaultWorkflow(todayStr, "New", tailor, "")
+
     };
     persist();
     closeModal();
@@ -6399,7 +6212,7 @@ function swatchModal(s) {
           </div>
           <div class="field">
             <label class="req">Vendor Phone / Email / WhatsApp</label>
-            <input id="smVendorContact" value="${esc(s.vendorContact || "")}" placeholder="e.g. +91 22 2600 4411 · orders@vendor.com">
+            <input id="smVendorContact" value="${esc(s.vendorContact || "")}" placeholder="Supplier phone or email">
           </div>
         </div>
       </div>
@@ -6570,17 +6383,16 @@ const ACTIONS = {
     const o = DB.orders[orderId];
     if (!o) return;
     let m = Object.values(DB.measurements).find(x =>
-      (x.orderNo || "").trim().toUpperCase() === (o.orderNo || "").trim().toUpperCase()
+      x.clientId === o.clientId && o.orderNo && (x.orderNo || "").trim().toUpperCase() === o.orderNo.trim().toUpperCase()
     );
     if (!m) {
       // Create a linked measurement docket for this order so the user can immediately enter measurements
       m = blankMeasure(o.clientId);
       m.orderNo = o.orderNo;
-      m.swatchCode = o.swatchCode || "SW-1042";
-      m.measuredBy = o.assignedTo || DB.settings.measuredByDefault || "Susheel Racherla";
+      m.swatchCode = o.swatchCode || "";
+      m.measuredBy = o.assignedTo || DB.settings.measuredByDefault || "";
       m.estGarmentType = o.garments || "2-Piece Bespoke Suit";
-      DB.measurements[m.id] = m;
-      persist();
+      m.selectedGarments = [];
     }
     ACTIVE_MEASURE_TAB = "lower";
     MREC = JSON.parse(JSON.stringify(m));
@@ -6648,6 +6460,16 @@ const ACTIONS = {
     persist();
     toast("Branding & Print Header settings saved");
   },
+  exportRecovery() {
+    const keys = DEMO_MODE ? [DB_KEY] : [DB_KEY, "modisto_bespoke_v6", "modisto_bespoke_v5", "modisto_bespoke_v4", "modisto_bespoke_v3"];
+    const raw = localStorage.getItem(RECOVERY_KEY) || keys.map(key => localStorage.getItem(key)).find(value => value !== null);
+    if (!raw) { toast("No pre-change backup is available yet. Export Database saves the current records."); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
+    a.download = "modisto-pre-change-recovery.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
   exportDb() {
     const blob = new Blob([JSON.stringify(DB, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -6666,8 +6488,17 @@ const ACTIONS = {
         try {
           const data = JSON.parse(r.result);
           if (!data.clients) throw new Error("Invalid backup");
-          DB = Object.assign(getSeedData(), data);
-          persist();
+          const imported = normalizeDatabase(data);
+          // A deliberate import can repair an unreadable current store. Keep its bytes first.
+          const wasBlocked = STORAGE_BLOCKED;
+          if (wasBlocked) {
+            const original = localStorage.getItem(DB_KEY);
+            if (original !== null && !localStorage.getItem(RECOVERY_KEY)) localStorage.setItem(RECOVERY_KEY, original);
+          }
+          STORAGE_BLOCKED = false;
+          try { writeDatabase(imported); } catch (error) { STORAGE_BLOCKED = wasBlocked; throw error; }
+          DB = imported;
+          MREC = null;
           toast("Database backup imported");
           go("dashboard");
         } catch (e) {
@@ -6679,19 +6510,16 @@ const ACTIONS = {
     f.click();
   },
   resetSeed() {
-    DB = getSeedData();
-    persist();
-    MREC = null;
-    toast("Sample Modisto Bespoke data restored");
-    go("dashboard");
+    location.href = "?demo=1";
   },
+
   wipeDb() {
     confirmDialog(
       "Erase All Data",
       "Erase ALL clients, measurements, swatches, and orders from this browser? Export a backup first if needed.",
       "Erase Everything",
       () => {
-        DB = { clients: {}, measurements: {}, orders: {}, swatches: {}, employees: getSeedData().employees, settings: DB.settings };
+        DB = { clients: {}, measurements: {}, orders: {}, swatches: {}, employees: {}, settings: DB.settings };
         persist();
         MREC = null;
         toast("All local data erased");
@@ -6706,9 +6534,7 @@ try {
   go("dashboard");
 } catch (err) {
   console.error("Boot recovery triggered:", err);
-  DB = getSeedData();
-  persist();
-  go("dashboard");
+  $("#main").textContent = "The interface could not load. Your stored records have been retained. Export or recover the original JSON before retrying.";
 }
 </script>
 </body>
