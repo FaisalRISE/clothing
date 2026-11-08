@@ -18,6 +18,16 @@ For orders awaiting garment breakdown, **Sequence & Trial Dates → Add trial / 
 
 Selecting a docket creates an immutable measurement copy. Jobs sharing the same saved docket reuse one copy. Editing the original docket leaves those job copies intact. **View measurement copy** shows the garment's fields in the cutter's sequence, with units, options and notes. To adopt later edits, explicitly select **Replace with the latest saved measurements**. Previous copies remain stored and job activity retains their references.
 
+## Individual workshop sheets
+
+Choose **Workshop sheet** on a saved garment card, then **Print workshop sheet** to open the browser print dialog or save as PDF. Choose A4 portrait. **Garment jobs** returns to the list. Save pending garment edits and select a saved measurement copy before opening a sheet. Printing never changes stored records, workflow completion, fabric commitments or payments.
+
+Each sheet identifies the client, order, physical garment job, maker, garment fabric swatch and measurement-copy reference. Measurements use the saved copy's unit and cutter sequence without rounding or converting values. Blanks print as unrecorded; zero remains explicit. Posture corrections, garment-specific options, cutter instructions, job notes and all fitting dates/notes are included. Free-text unit annotations are reproduced verbatim. Order first-trial and delivery dates are labelled separately from garment trial dates. No order prices or advances appear on the sheet.
+
+Waistcoat, bandi, sherwani and kurta sheets include a labelled upper-body reference section because their dedicated measurement sections contain only a few fields. These reference values retain their original field names. Previously unknown docket fields appear under **Other saved docket references - review applicability**. No missing measurement or garment fabric assignment is inferred from the live docket or order-level swatch.
+
+Normal jacket sheets fit one A4 page with typical notes. Longer instructions and trial histories continue onto additional pages, with garment identification repeated in the page margin. Demo sheets are explicitly marked as samples. A4 PDF output is verified in Chrome; other browsers and physical printers have not been checked. The existing full-docket table and visual-guide print preview remain available from Measurements. There is no data migration for this feature.
+
 ## Existing records and recovery
 
 There is no automatic parsing of historical garment descriptions. Staff review the quantity and components before confirming. New jobs start at New with pending tasks. The previous order stage and full order workflow remain available through **View previous order workflow**.
@@ -26,10 +36,12 @@ The local JSON format adds `orders[id].garmentJobs`, `productionBeforeGarmentJob
 
 Export the database in Settings before converting existing orders. Import that export in Settings to restore it. Keep the export when rolling back to older application code. The browser still stores data separately for each device and profile.
 
-Garment-list and costing saves check for intervening edits to the order and retain the draft on conflict or storage failure. Shared storage and transactional inventory remain later milestones. Individual job print sheets, cancellation/reduction revisions and repeat-fitting templates are also pending. Existing docket print preview remains available.
+Garment-list and costing saves check for intervening edits to the order and retain the draft on conflict or storage failure. Shared storage and transactional inventory remain later milestones. Cancellation/reduction revisions and repeat-fitting templates are also pending.
 
 ## Verification
 
 Data checks cover bundle expansion, stable IDs, independent progress, preserved commercial fields and historical workflow, shared immutable measurement copies, refresh history, stale edits, cross-client references and failed writes.
 
 Browser checks cover the full garment flow and measurement regressions on desktop, portrait tablet, landscape tablet and phone sizes. They include reload, different fabrics and makers, partial readiness, Team assignments, explicit refresh of measurements, failed-save retry and a stale costing form.
+
+Workshop-sheet checks cover frozen measurement copies, inches/centimetres, blank versus zero, all garment types, instruction escaping, saved-state guards, keyboard print controls, returning to the garment list, and long multi-page fitting histories. A4 PDF output is inspected for page size, complete notes and repeated garment identification.

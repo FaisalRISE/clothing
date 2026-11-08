@@ -1274,6 +1274,48 @@ tr.rowlink:hover { background: #faf7f0; }
 .garment-task input[type="date"], .garment-task input[type="text"] { max-width: 100%; width: 100%; margin-top: 6px; padding: 6px; }
 .measurement-copy { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
 .measurement-copy dd { margin: 0; text-align: right; font-weight: 600; }
+.workshop-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.workshop-paper { max-width: 900px; margin: 0 auto; background: white; color: #17202b; padding: 24px; border: 1px solid #c7c9cd; font: 13px/1.4 Arial, sans-serif; overflow-wrap: anywhere; }
+.workshop-document { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.workshop-document > thead > tr > td, .workshop-document > tbody > tr > td { padding: 0; border: 0; font-size: inherit; }
+.workshop-header { border-bottom: 2px solid #17202b; padding-bottom: 10px; margin-bottom: 12px; }
+.workshop-running-header { padding: 0 0 6px; font-size: 11px; }
+.workshop-running-header span { display: block; font-size: 10px; margin-top: 3px; }
+.workshop-header h2 { margin: 2px 0 6px; font: bold 24px/1.2 Arial, sans-serif; }
+.workshop-header p { margin: 3px 0; }
+.workshop-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px; }
+.workshop-columns { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: start; }
+.workshop-paper h3 { margin: 12px 0 5px; font: bold 13px/1.3 Arial, sans-serif; text-transform: uppercase; letter-spacing: .4px; }
+.workshop-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.workshop-table th, .workshop-table td { border: 1px solid #c7c9cd; padding: 5px 6px; text-align: left; vertical-align: top; font-size: inherit; white-space: normal; overflow-wrap: anywhere; }
+.workshop-table th { background: #f0f1f2; color: #17202b; font-weight: bold; text-transform: none; letter-spacing: 0; }
+.workshop-document .workshop-trial-row td, .workshop-document .workshop-trial-head th { border: 1px solid #c7c9cd; padding: 5px 6px; font-size: inherit; text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+.workshop-document .workshop-trial-head th { background: #f0f1f2; color: #17202b; letter-spacing: 0; text-transform: none; }
+.workshop-lines { margin: 0; white-space: pre-wrap; }
+.workshop-value { width: 30%; font-weight: bold; }
+.workshop-note { white-space: pre-wrap; margin: 4px 0 10px; }
+.workshop-copy-ref { font-size: 10px; margin-top: 8px; }
+.workshop-signoff { padding-top: 15px; margin-top: 12px; border-top: 1px solid #727780; }
+@media(max-width: 600px) {
+  .workshop-paper { padding: 12px; }
+  .workshop-columns, .workshop-meta { grid-template-columns: 1fr; }
+}
+@media print {
+  @page garment-sheet { size: A4 portrait; margin: 20mm 10mm 10mm; }
+  body.garment-print-mode #main > :not(#garmentPrintSheet) { display: none !important; }
+  body.garment-print-mode .workshop-paper { page: garment-sheet; max-width: none; border: 0; padding: 0; margin: 0; font-size: 11px; }
+  body.garment-print-mode .workshop-header h2 { font-size: 18px; }
+  body.garment-print-mode .workshop-columns { grid-template-columns: 1.2fr 1fr; gap: 12px; }
+  body.garment-print-mode .workshop-meta { grid-template-columns: 1fr 1fr; }
+  body.garment-print-mode .workshop-paper h3 { font-size: 10px; margin-top: 8px; break-after: avoid; }
+  body.garment-print-mode .workshop-table th, body.garment-print-mode .workshop-table td { padding: 3px 5px; }
+  body.garment-print-mode .workshop-table tr { break-inside: avoid; }
+  body.garment-print-mode .workshop-trial-row { break-inside: avoid; }
+  body.garment-print-mode .workshop-document .workshop-trial-row td, body.garment-print-mode .workshop-document .workshop-trial-head th { padding: 3px 5px; }
+  body.garment-print-mode .workshop-document > thead { display: table-row-group; }
+  body.garment-print-mode .workshop-copy-ref { font-size: 8px; }
+  body.garment-print-mode .workshop-signoff { break-inside: avoid; }
+}
 #abCreateOrder[hidden] { display: none; }
 .panel { scroll-margin-top: 96px; }
 .fraction-bar { position: sticky; top: 0; z-index: 20; }
@@ -1604,6 +1646,77 @@ function appendAdditionalTrial(workflow) {
     daysTaken: "", assignedTo: "", notes: ""
   });
   return result;
+}
+
+const WORKSHOP_TEXT_FIELDS = {
+  lower: [["bowLegInches", "Bow leg correction", true], ["knockKneesInches", "Knock-knee correction", true],
+    ["bowLegComment", "Bow leg instructions"], ["knockKneesComment", "Knock-knee instructions"],
+    ["forwardStanceComment", "Forward stance instructions"], ["outfoldHeight", "Outfold height"]],
+  shirt: [["cuffComment", "Cuff instructions"], ["collarComment", "Collar instructions"],
+    ["shirtInitialsText", "Shirt initials"], ["shirtComments", "Shirt cutter instructions"]],
+  upper: [["shoulderDownInches", "Shoulder correction", true], ["Initials in Suit", "Suit initials"],
+    ["suitComments", "Suit cutter instructions"]],
+  waistcoat: [["waistcoatComments", "Waistcoat cutter instructions"]],
+  bandi: [["bandiComments", "Bandi cutter instructions"]],
+  sherwani: [["sherwaniComments", "Sherwani / kurta cutter instructions"]]
+};
+
+function buildGarmentWorkshopSheet(database, orderId, jobId) {
+  const order = database.orders[orderId];
+  const job = order?.garmentJobs?.find(item => item.id === jobId);
+  if (!job || !GARMENT_JOB_TYPES[job.type]) throw new Error("This saved garment job is no longer available.");
+  const client = database.clients[order.clientId];
+  const version = database.measurementVersions?.[job.measurementVersionId];
+  const snapshot = version?.snapshot;
+  if (!client) throw new Error("The client is no longer available.");
+  if (!snapshot) throw new Error("Choose saved measurements for this garment, then save the garment list before printing.");
+  if (version.clientId !== order.clientId || snapshot.clientId !== order.clientId) {
+    throw new Error("This measurement copy does not belong to the order's client.");
+  }
+  const schemaId = GARMENT_JOB_TYPES[job.type].schema;
+  const schema = SCHEMA[schemaId];
+  const needsReference = ["waistcoat", "bandi", "sherwani"].includes(schemaId);
+  let keys = schema.measures;
+  if (job.type === "kurta") keys = keys.filter(key => key === "Kurta Length");
+  if (job.type === "sherwani") keys = keys.filter(key => key !== "Kurta Length");
+  const measures = fields => fields.map(label => ({ label, value: snapshot.measures?.[label] ?? "" }));
+  const sections = [];
+  if (needsReference) sections.push({title:"Upper-body reference from saved docket",rows:measures(SCHEMA.upper.measures)});
+  sections.push({title:GARMENT_JOB_TYPES[job.type].label + " measurements",rows:measures(keys)});
+  const tickKeys = needsReference ? ["Shoulder Down", "Hunchback"] : (schema.ticks || []).map(([key]) => key);
+  if (schemaId === "shirt") tickKeys.push("Shoulder Down", "Hunchback");
+  const options = tickKeys.map(label => ({label,value:snapshot.ticks?.[label] ?? ""}));
+  const fields = [...(WORKSHOP_TEXT_FIELDS[schemaId] || [])];
+  if (needsReference || schemaId === "shirt") fields.unshift(WORKSHOP_TEXT_FIELDS.upper[0]);
+  const hasValue = value => value != null && String(value).trim() !== "";
+  const instructions = fields.filter(([key]) => hasValue(snapshot.texts?.[key]))
+    .map(([key,label,numeric]) => ({label,value:snapshot.texts[key],numeric:Boolean(numeric)}));
+  const knownTexts = new Set(Object.values(WORKSHOP_TEXT_FIELDS).flat().map(([key]) => key));
+  const knownTicks = new Set(Object.values(SCHEMA).flatMap(value => (value.ticks || []).map(([key]) => key)));
+  const knownMeasures = new Set(Object.values(SCHEMA).flatMap(value => value.measures));
+  const otherNotes = [
+    ...Object.entries(snapshot.texts || {}).filter(([key,value]) => !knownTexts.has(key) && hasValue(value)),
+    ...Object.entries(snapshot.ticks || {}).filter(([key,value]) => !knownTicks.has(key) && hasValue(value))
+  ].map(([label,value]) => ({label:label.replace(/([a-z])([A-Z])/g,"$1 $2"),value}));
+  otherNotes.push(...Object.entries(snapshot.measures || {}).filter(([key,value]) => !knownMeasures.has(key) && hasValue(value))
+    .map(([label,value]) => ({label,value,numeric:true})));
+  const swatch = Object.values(database.swatches).find(item => item.code === job.swatchCode);
+  return copyGarmentData({
+    orderId:order.id, orderNo:order.orderNo, orderDate:order.date || "", orderTrialDate:order.trialDate || "",
+    delivery:order.delivery || "", clientId:client.id, clientName:client.name || "Unnamed client",
+    jobId:job.id, jobLabel:job.label, garmentType:GARMENT_JOB_TYPES[job.type].label,
+    stage:job.status, maker:job.maker || "", swatchCode:job.swatchCode || "",
+    swatchDescription:swatch ? [swatch.colorName,swatch.book].filter(Boolean).join(" · ") : "",
+    versionId:job.measurementVersionId, sourceDocket:snapshot.orderNo || version.sourceMeasurementId,
+    measuredDate:snapshot.date || "", measuredBy:snapshot.measuredBy || "", copiedAt:version.copiedAt || "",
+    unit:snapshot.unit || "in", sections, options, instructions, otherNotes,
+    docketNotes:snapshot.notes || "", jobNotes:job.notes || "",
+    trials:(job.workflow || []).filter(isTrialWorkflowStep).map(step => ({
+      label:step.label,scheduledDate:step.scheduledDate || "",done:Boolean(step.done),doneDate:step.doneDate || "",notes:step.notes || ""
+    })),
+    taskNotes:(job.workflow || []).filter(step => !isTrialWorkflowStep(step) && hasValue(step.notes))
+      .map(step => ({label:step.label,value:step.notes}))
+  });
 }
 
 function makeGarmentJobs(type, quantity, defaults, existingJobs = []) {
@@ -2706,6 +2819,7 @@ let ACTIVE_MEASURE_TAB = "lower";
 let ACTIVE_ORDER_STAGE_FILTER = "";
 let SELECTED_TEAM_EMP_ID = "";
 let GARMENT_WORKSPACE = null;
+let GARMENT_PRINT_SHEET = null;
 
 function garmentWorkspaceDirty() {
   return GARMENT_WORKSPACE && JSON.stringify(GARMENT_WORKSPACE.jobs) !== GARMENT_WORKSPACE.savedJobs;
@@ -2730,7 +2844,7 @@ function go(name, params) {
     }
   }
   $$("#nav button").forEach(b => b.classList.toggle("on",
-    b.dataset.v === name || (name === "client" && b.dataset.v === "clients") || (name === "garments" && b.dataset.v === "orders")
+    b.dataset.v === name || (name === "client" && b.dataset.v === "clients") || (["garments", "garmentPrint"].includes(name) && b.dataset.v === "orders")
   ));
   $("#actionbar").classList.toggle("on", name === "measure");
   updateNavCounts();
@@ -2767,6 +2881,7 @@ if (branchSel) {
 
 function render() {
   const m = $("#main");
+  document.body.classList.toggle("garment-print-mode", VIEW.name === "garmentPrint");
   m.oninput = null;
   m.onchange = null;
   if (VIEW.name === "dashboard") m.innerHTML = vDashboard();
@@ -2774,6 +2889,7 @@ function render() {
   else if (VIEW.name === "client") m.innerHTML = vClient(VIEW.id);
   else if (VIEW.name === "orders") m.innerHTML = vOrders();
   else if (VIEW.name === "garments") { m.innerHTML = vGarmentJobs(); mountGarmentJobs(); }
+  else if (VIEW.name === "garmentPrint") { m.innerHTML = vGarmentWorkshopSheet(); mountGarmentWorkshopSheet(); }
   else if (VIEW.name === "team") m.innerHTML = vTeam();
   else if (VIEW.name === "swatches") m.innerHTML = vSwatches();
   else if (VIEW.name === "costing") m.innerHTML = vCosting();
@@ -4913,6 +5029,7 @@ function vGarmentJobs() {
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn sm" data-job-edit="${esc(job.id)}">Edit garment &amp; progress</button>
             ${version ? `<button class="btn sm" data-job-copy="${esc(job.id)}">View measurement copy</button>` : ""}
+            <button class="btn sm" data-job-print="${esc(job.id)}" ${!version || !savedIds.has(job.id) || garmentWorkspaceDirty() ? 'disabled title="Choose measurements and save garment changes before printing"' : ""}>Workshop sheet</button>
             ${!savedIds.has(job.id) ? `<button class="btn sm danger" data-job-remove="${esc(job.id)}">Remove draft job</button>` : ""}
           </div>
           ${job.history?.length ? `<details><summary>Activity (${job.history.length})</summary>
@@ -5076,10 +5193,107 @@ function showGarmentMeasurement(jobId) {
   $("#gjCopyClose").onclick = closeModal;
 }
 
+function openGarmentWorkshopSheet(jobId) {
+  if (garmentWorkspaceDirty()) { toast("Save garment changes before opening a workshop sheet."); return; }
+  try {
+    const latest = latestStoredDatabase();
+    const order = latest.orders[GARMENT_WORKSPACE.orderId];
+    if (JSON.stringify(order) !== GARMENT_WORKSPACE.original) {
+      throw new Error("This order changed in another tab. Reopen its garment list before printing.");
+    }
+    GARMENT_PRINT_SHEET = buildGarmentWorkshopSheet(latest, order.id, jobId);
+    go("garmentPrint");
+    $("#workshopPrintNow").focus({preventScroll:true});
+    window.scrollTo(0,0);
+  } catch (error) { toast(error.message); }
+}
+
+function vGarmentWorkshopSheet() {
+  const sheet = GARMENT_PRINT_SHEET;
+  const value = raw => raw == null || raw === "" ? "—" : esc(raw);
+  const measurement = raw => raw == null || raw === "" ? "—" : esc(raw) + " " + esc(sheet.unit);
+  const rows = (items,numeric = false) => items.map(item => `<tr><td>${esc(item.label)}</td><td class="workshop-value">${numeric || item.numeric ? measurement(item.value) : value(item.value)}</td></tr>`).join("");
+  const note = (label,text) => text ? `<h3>${esc(label)}</h3><p class="workshop-note">${esc(text)}</p>` : "";
+  // Keep long notes in short rows so they can break cleanly between pages.
+  const chunks = text => String(text).split(/\r?\n/).flatMap(line => {
+    const result = [];
+    let current = "";
+    for (const word of line.match(/\S+\s*|\s+/g) || [""]) {
+      if (current && current.length + word.length > 600) { result.push(current); current = ""; }
+      current += word;
+    }
+    result.push(current);
+    return result;
+  });
+  const noteRows = (label,text) => text ? `<tr><td colspan="4"><h3>${esc(label)}</h3></td></tr>` + chunks(text)
+    .map(line => `<tr><td colspan="4"><p class="workshop-lines">${esc(line) || "&nbsp;"}</p></td></tr>`).join("") : "";
+  return `
+    <style id="garmentPageStyle"></style>
+    <div class="workshop-actions no-print">
+      <button class="btn" id="workshopBack">← Garment jobs</button>
+      <button class="btn primary" id="workshopPrintNow">Print workshop sheet</button>
+      <span>Saved garment details · ${esc(sheet.unit === "cm" ? "Centimetres" : sheet.unit === "in" ? "Inches" : sheet.unit)}</span>
+    </div>
+    <article id="garmentPrintSheet" class="workshop-paper" aria-label="Garment workshop sheet">
+      <table class="workshop-document">
+        <colgroup><col style="width:20%"><col style="width:16%"><col style="width:16%"><col style="width:48%"></colgroup>
+        <thead><tr><td colspan="4"><div class="workshop-running-header">
+          <b>MODISTO BESPOKE · WORKSHOP SHEET${DEMO_MODE ? " · DEMO SAMPLE" : ""}</b>
+          <span>${esc(sheet.clientName)} · Order ${esc(sheet.orderNo)} · Job ${esc(sheet.jobId)}</span>
+        </div></td></tr></thead>
+        <tbody><tr><td colspan="4"><header class="workshop-header">
+          ${DEMO_MODE ? "<p><b>DEMO - SAMPLE WORKSHOP SHEET</b></p>" : ""}
+          <h2>${esc(sheet.jobLabel)} · ${esc(sheet.garmentType)}</h2>
+          <p><b>Client:</b> ${esc(sheet.clientName)} · ${esc(sheet.clientId)}</p>
+          <div class="workshop-meta">
+            <div><b>Maker:</b> ${value(sheet.maker)}</div><div><b>Stage:</b> ${value(sheet.stage)}</div>
+            <div><b>Fabric swatch:</b> ${value(sheet.swatchCode)}${sheet.swatchDescription ? " · " + esc(sheet.swatchDescription) : ""}</div>
+            <div><b>Promised delivery:</b> ${fmtDate(sheet.delivery)}</div>
+            <div><b>Order first trial:</b> ${fmtDate(sheet.orderTrialDate)}</div>
+            <div><b>Measurement unit:</b> ${sheet.unit === "in" ? "Inches (in)" : sheet.unit === "cm" ? "Centimetres (cm)" : esc(sheet.unit)}</div>
+          </div>
+          <div class="workshop-copy-ref">Measurement copy ${esc(sheet.versionId)} · Docket ${esc(sheet.sourceDocket)}<br>
+            Measured ${fmtDate(sheet.measuredDate)} by ${value(sheet.measuredBy)} · Copied ${value(sheet.copiedAt)}</div>
+        </header></td></tr>
+          <tr><td colspan="4"><div class="workshop-columns">
+            <div>${sheet.sections.map(section => `<h3>${esc(section.title)}</h3><table class="workshop-table"><tbody>${rows(section.rows,true)}</tbody></table>`).join("")}</div>
+            <div><h3>Posture &amp; garment options</h3>
+              ${sheet.options.length ? `<table class="workshop-table"><tbody>${rows(sheet.options)}</tbody></table>` : "<p>No garment options recorded.</p>"}
+              ${sheet.instructions.map(item => note(item.label, item.numeric ? (item.value + " " + sheet.unit) : String(item.value))).join("")}
+            </div>
+          </div></td></tr>
+          ${noteRows("Garment instructions",sheet.jobNotes)}${noteRows("Saved docket instructions",sheet.docketNotes)}
+          ${sheet.otherNotes.length ? `<tr><td colspan="4"><h3>Other saved docket references - review applicability</h3></td></tr>` + sheet.otherNotes.map(item => noteRows(item.label,item.numeric ? item.value + " " + sheet.unit : String(item.value))).join("") : ""}
+          ${sheet.trials.length ? `<tr><td colspan="4"><h3>Trials &amp; fitting notes</h3></td></tr>
+            <tr class="workshop-trial-head"><th>Trial</th><th>Scheduled</th><th>Completed</th><th>Fitting / alteration notes</th></tr>
+            ${sheet.trials.map(trial => chunks(trial.notes).map((text,index) => `<tr class="workshop-trial-row"><td>${esc(trial.label)}${index ? " (continued)" : ""}</td><td>${fmtDate(trial.scheduledDate)}</td>
+              <td>${trial.done ? (trial.doneDate ? fmtDate(trial.doneDate) : "Done - date unrecorded") : "Pending" + (trial.doneDate ? " (date recorded: " + fmtDate(trial.doneDate) + ")" : "")}</td>
+              <td class="workshop-note">${value(text)}</td></tr>`).join("")).join("")}` : ""}
+          ${sheet.taskNotes.map(item => noteRows(item.label,item.value)).join("")}
+          <tr><td colspan="4"><div class="workshop-signoff">Cutter checked: ____________________ &nbsp; Date: ________________<br>
+            <small>Use this garment's saved measurement copy. Blank measurements are unrecorded; zero values are shown explicitly.</small></div></td></tr>
+        </tbody>
+      </table>
+    </article>`;
+}
+
+function mountGarmentWorkshopSheet() {
+  const sheet = GARMENT_PRINT_SHEET;
+  const heading = (DEMO_MODE ? "DEMO · " : "") + "MODISTO · " + sheet.clientName + " · Order " + sheet.orderNo + " · Job " + sheet.jobId;
+  $("#garmentPageStyle").textContent = '@media print { @page garment-sheet { @top-left { content: ' + JSON.stringify(heading) + '; font: 8px Arial, sans-serif; color: #17202b; } @bottom-right { content: counter(page); font: 8px Arial, sans-serif; } } }';
+  $("#workshopPrintNow").onclick = () => window.print();
+  $("#workshopBack").onclick = () => {
+    const sheet = GARMENT_PRINT_SHEET;
+    openGarmentWorkspace(sheet.orderId);
+    $(`[data-job-print="${sheet.jobId}"]`)?.focus();
+  };
+}
+
 function mountGarmentJobs() {
   $("#gjAdd").onclick = () => garmentJobModal();
   $$("#main [data-job-edit]").forEach(button => button.onclick = () => garmentJobModal(button.dataset.jobEdit));
   $$("#main [data-job-copy]").forEach(button => button.onclick = () => showGarmentMeasurement(button.dataset.jobCopy));
+  $$("#main [data-job-print]").forEach(button => button.onclick = () => openGarmentWorkshopSheet(button.dataset.jobPrint));
   $$("#main [data-job-remove]").forEach(button => button.onclick = () => {
     GARMENT_WORKSPACE.jobs = GARMENT_WORKSPACE.jobs.filter(job => job.id !== button.dataset.jobRemove);
     render();
