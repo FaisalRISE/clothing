@@ -18,10 +18,12 @@ npm test
 npm run test:browser
 ```
 
-The browser suite uses isolated browser contexts and synthetic/sample records. It covers 1440×1000 desktop, 820×1180 portrait tablet and 1024×768 landscape tablet. Screenshots and A4 PDFs are written to ignored `test-results/`. The server listens on loopback only and serves just the application.
+The browser suite uses isolated browser contexts and synthetic/sample records. It covers 1440×1000 desktop, 820×1180 portrait tablet, 1024×768 landscape tablet and 390×844 phone. Screenshots and A4 PDFs are written to ignored `test-results/`. The server listens on loopback only and serves just the application.
 
 ## Data and recovery
 
 Data stays in the browser's localStorage, separately for each origin, browser profile and device. Local preview cannot see the live site's storage. No shared database or authentication is introduced here. Optional Google Sheets export remains a one-way, unacknowledged request.
 
 Read [the measurement milestone report](docs/measurement-milestone.md) before using this version with an existing backup. Export JSON from every browser or device holding business records before rollout.
+
+Read [the garment jobs guide](docs/garment-jobs.md) for reviewing existing order quantities, assigning individual garments and retaining saved measurement copies.

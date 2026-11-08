@@ -120,3 +120,61 @@ test('empty real workspace, isolated demo mode and corrupt data protection', () 
   assert.throws(()=>corrupt.run('writeDatabase(DB)'), /could not be loaded/);
   assert.equal(corrupt.storage.get('modisto_bespoke_v6'),'broken JSON');
 });
+
+test('a suit and two shirts become four distinct jobs without fabric or progress assumptions', () => {
+  const a = app();
+  a.run('const suit = makeGarmentJobs("suit2", 1, {}); const shirts = makeGarmentJobs("shirt", 2, {}, suit); globalThis.jobs = [...suit, ...shirts];');
+  const jobs = copy(a.run('jobs'));
+  assert.deepEqual(jobs.map(job => job.type), ['jacket', 'trousers', 'shirt', 'shirt']);
+  assert.equal(new Set(jobs.map(job => job.id)).size, 4);
+  assert.equal(jobs[0].bundleId, jobs[1].bundleId);
+  assert.ok(jobs.every(job => !job.maker && !job.swatchCode && job.status === 'New' && job.workflow.every(step => !step.done && !step.doneDate)));
+  assert.throws(() => a.run('makeGarmentJobs("shirt", 1.5, {})'), /whole quantity/);
+});
+
+test('garment adoption and independent stages preserve legacy history and all financial fields', () => {
+  const a = app({modisto_bespoke_v6: JSON.stringify(legacy)});
+  a.run('globalThis.workspace = {orderId:"o", original:JSON.stringify(DB.orders.o), jobs:makeGarmentJobs("suit2",1,{}), versions:{}}; commitGarmentWorkspace(workspace);');
+  const adopted = copy(a.run('DB.orders.o'));
+  for (const key of Object.keys(legacy.orders.o).filter(key => key !== 'status')) assert.deepEqual(adopted[key], legacy.orders.o[key]);
+  assert.equal(adopted.productionBeforeGarmentJobs.status, 'Stitching');
+  a.run('workspace.original = JSON.stringify(DB.orders.o); workspace.jobs[0] = applyGarmentJobEdit(workspace.jobs[0], {status:"Ready",maker:"Maker"}); commitGarmentWorkspace(workspace);');
+  assert.equal(a.run('DB.orders.o.garmentJobs[1].status'), 'New');
+  assert.equal(a.run('DB.orders.o.status'), 'New');
+  assert.equal(a.run('garmentProgressText(DB.orders.o.garmentJobs)'), '1 of 2 garments ready');
+  assert.deepEqual(copy(a.run('DB.orders.o.workflow')), legacy.orders.o.workflow);
+  assert.equal(a.run('DB.orders.o.advancePaid'), 112000);
+  assert.equal(a.run('DB.orders.o.fabricMeters'), 40);
+  a.run('workspace.original = JSON.stringify(DB.orders.o); workspace.jobs[1] = applyGarmentJobEdit(workspace.jobs[1], {status:"Ready"}); commitGarmentWorkspace(workspace);');
+  assert.equal(a.run('DB.orders.o.status'), 'Ready');
+});
+
+test('immutable measurement versions are shared by jobs and remain after later docket edits', async () => {
+  const a = app({modisto_bespoke_v6: JSON.stringify(legacy)});
+  a.run('globalThis.versions = {}; globalThis.versionId = captureGarmentMeasurement("m",DB,versions); globalThis.workspace = {orderId:"o", original:JSON.stringify(DB.orders.o), jobs:makeGarmentJobs("shirt",2,{measurementVersionId:versionId}), versions}; commitGarmentWorkspace(workspace);');
+  assert.equal(a.run('Object.keys(DB.measurementVersions).length'),1);
+  assert.equal(a.run('captureGarmentMeasurement("m",DB,versions)'), a.run('versionId'));
+  a.run('MREC = JSON.parse(JSON.stringify(DB.measurements.m)); MREC.measures.Chest="42";');
+  await a.run('saveMeasure()');
+  assert.equal(a.run('DB.measurementVersions[versionId].snapshot.measures.Chest'), '40');
+  assert.equal(a.run('DB.measurements.m.measures.Chest'), '42');
+  a.run('workspace.original = JSON.stringify(DB.orders.o); const nextId=captureGarmentMeasurement("m",DB,versions); workspace.jobs[0]=applyGarmentJobEdit(workspace.jobs[0],{measurementVersionId:nextId}); commitGarmentWorkspace(workspace);');
+  assert.equal(a.run('Object.keys(DB.measurementVersions).length'),2);
+  assert.equal(a.run('DB.orders.o.garmentJobs[1].measurementVersionId'),a.run('versionId'));
+});
+
+test('garment saves reject stale orders, foreign-client measurements and failed storage without partial writes', () => {
+  const a = app({modisto_bespoke_v6: JSON.stringify(legacy)});
+  a.run('globalThis.workspace = {orderId:"o",original:JSON.stringify(DB.orders.o),jobs:makeGarmentJobs("shirt",1,{}),versions:{}};');
+  const changed = copy(legacy);
+  changed.orders.o.advancePaid=120000;
+  a.storage.set('modisto_bespoke_v7',JSON.stringify(changed));
+  assert.throws(()=>a.run('commitGarmentWorkspace(workspace)'), /changed in another tab/);
+  a.run('workspace.original=JSON.stringify(latestStoredDatabase().orders.o); workspace.versions.bad={id:"bad",clientId:"other",snapshot:{clientId:"other"}}; workspace.jobs[0].measurementVersionId="bad";');
+  assert.throws(()=>a.run('commitGarmentWorkspace(workspace)'), /this order's client/);
+  a.run('workspace.jobs[0].measurementVersionId=""; localStorage.setItem=()=>{throw new Error("Quota exceeded")};');
+  const before=copy(a.run('DB'));
+  assert.throws(()=>a.run('commitGarmentWorkspace(workspace)'), /Quota exceeded/);
+  assert.deepEqual(copy(a.run('DB')),before);
+  assert.equal(JSON.parse(a.storage.get('modisto_bespoke_v7')).orders.o.advancePaid,120000);
+});
