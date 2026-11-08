@@ -31,3 +31,5 @@ Run `npm run test:shared` and `npm run test:shared:browser` to verify that separ
 Read [the measurement milestone report](docs/measurement-milestone.md) before using this version with an existing backup. Export JSON from every browser or device holding business records before rollout.
 
 Read [the garment jobs guide](docs/garment-jobs.md) for reviewing existing order quantities, assigning individual garments and retaining saved measurement copies.
+
+Read [the sample-order workflow check](docs/workflow-check.md) for the client → measurements → four garment jobs → fitting → workshop sheets → delivery → reviewed financial totals rehearsal and its remaining limitations.

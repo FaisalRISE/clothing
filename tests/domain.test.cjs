@@ -20,6 +20,42 @@ function app(initial = {}, search = '') {
   return { run: code => vm.runInContext(code, context), storage, context, status };
 }
 const copy = value => JSON.parse(JSON.stringify(value));
+
+test('order search finds individual makers, fabrics and retained cancelled garment labels',()=>{
+ const a=app();
+ a.context.sample={orderNo:'ORDER-CHECK',garments:'Historical free text',swatchCode:'PRIMARY',assignedTo:'Cutter',
+  garmentJobs:[{type:'shirt',label:'Evening Shirt Two',swatchCode:'SECONDARY',maker:'Shirt Specialist',cancellation:{reason:'Retain reference'}}]};
+ const before=JSON.stringify(a.context.sample),text=a.run('orderSearchText(sample,{name:"Test Patron"})');
+ for(const term of ['order-check','historical free text','primary','cutter','secondary','shirt specialist','evening shirt two','test patron'])assert.ok(text.includes(term));
+ assert.equal(JSON.stringify(a.context.sample),before);
+});
+
+test('order progress skips delivered and cancelled jobs without inventing task completion',()=>{
+ const a=app();
+ a.context.sample={status:'Cutting',garmentJobs:[
+  {label:'Delivered shirt',status:'Delivered',workflow:[{label:'Earlier task',done:false}]},
+  {label:'Cancelled trousers',status:'New',cancellation:{reason:'Cancelled'},workflow:[{label:'Excluded task',done:false}]},
+  {label:'Jacket',maker:'Workshop maker',status:'Cutting',workflow:[{label:'Completed task',done:true},{label:'Cut pattern',done:false}]}
+ ]};
+ const before=JSON.stringify(a.context.sample),progress=copy(a.run('orderWorkflowSummary(sample)'));
+ assert.equal(progress.total,3);assert.equal(progress.done,1);assert.deepEqual(progress.next,{label:'Cut pattern',garment:'Jacket',assignedTo:'Workshop maker'});
+ assert.equal(JSON.stringify(a.context.sample),before);
+ assert.equal(a.run('orderWorkflowSummary({status:"Delivered",workflow:[{label:"Retained",done:false}]}).delivered'),true);
+ assert.equal(a.run('orderWorkflowSummary({status:"Cancelled",garmentJobs:sample.garmentJobs.map(job=>({...job,cancellation:{reason:"Cancelled"}}))}).cancelled'),true);
+ assert.equal(a.run('orderWorkflowSummary({status:"New"}).total'),0);
+});
+
+test('received-total summaries distinguish missing values, explicit zero and excess receipts without modifying records',()=>{
+ const a=app();
+ assert.deepEqual(copy(a.run('recordedOrderPayments({amount:50000,advancePaid:""})')),{quoted:50000,received:null,balance:null,excess:null});
+ assert.deepEqual(copy(a.run('recordedOrderPayments({amount:0,advancePaid:"0"})')),{quoted:0,received:0,balance:0,excess:0});
+ assert.deepEqual(copy(a.run('recordedOrderPayments({amount:100,advancePaid:150})')),{quoted:100,received:150,balance:0,excess:50});
+ a.context.sample={amount:null,advancePaid:0,workflow:[{done:false}],garmentJobs:[]};const before=JSON.stringify(a.context.sample);
+ assert.equal(a.run('recordedOrderPayments(sample).balance'),null);assert.equal(JSON.stringify(a.context.sample),before);
+ assert.equal(a.run('orderTimingRecorded({actualDays:0,estDays:0})'),true);
+ assert.equal(a.run('orderTimingRecorded({actualDays:null,estDays:5})'),false);
+ assert.equal(a.run('orderTimingRecorded({actualDays:0,estDays:""})'),false);
+});
 const legacy = {
   clients: { c: { id: 'c', name: 'Regression patron', posture: 'Approved prior posture' } },
   measurements: { m: { id: 'm', clientId: 'c', orderNo: 'SAME', unit: 'in', measures: { Chest: '40' }, ticks: {}, texts: {}, savedAt: 'old' } },
