@@ -1795,6 +1795,44 @@ function garmentOrderDescription(order) {
   return [...counts].map(([type, quantity]) => quantity + "× " + (GARMENT_JOB_TYPES[type]?.label || type)).join(" + ");
 }
 
+function orderSearchText(order, client = {}) {
+  const garmentFields = (order.garmentJobs || []).flatMap(job =>
+    [job.label, GARMENT_JOB_TYPES[job.type]?.label, job.maker, job.swatchCode]);
+  return [order.orderNo, client.name, order.garments, garmentOrderDescription(order),
+    order.swatchCode, order.fabric, order.assignedTo, order.karigarAssigned, ...garmentFields].join(" ").toLowerCase();
+}
+
+function orderWorkflowSummary(order) {
+  const jobs = order.garmentJobs || [];
+  const active = jobs.filter(job => !job.cancellation);
+  const workflow = jobs.length ? active.flatMap(job => job.workflow || []) : order.workflow || [];
+  const nextJob = active.find(job => job.status !== "Delivered" && job.workflow?.some(step => !step.done));
+  const next = jobs.length ? nextJob?.workflow.find(step => !step.done) : workflow.find(step => !step.done);
+  return {total:workflow.length,done:workflow.filter(step => step.done).length,
+    delivered:order.status === "Delivered",cancelled:order.status === "Cancelled" || (jobs.length > 0 && !active.length),
+    next:next ? {label:next.label,garment:nextJob?.label || "",assignedTo:next.assignedTo || nextJob?.maker || ""} : null};
+}
+
+function orderWorkflowNote(progress) {
+  if (progress.cancelled) return "No active garments · history retained";
+  if (progress.delivered) return "Delivery recorded" + (progress.total > progress.done ? " · " + (progress.total-progress.done) + " tasks not marked complete" : "");
+  if (!progress.next) return progress.total ? "All recorded tasks complete" : "No workflow recorded";
+  const next = progress.next;
+  const label = [next.garment,next.label.replace(/^\d+\.\s*/, "")].filter(Boolean).join(" · ");
+  return "Next: " + label + (next.assignedTo ? " (" + next.assignedTo + ")" : "");
+}
+
+function recordedOrderPayments(order) {
+  const value = raw => raw == null || String(raw).trim() === "" || !Number.isFinite(Number(raw)) || Number(raw) < 0 ? null : Number(raw);
+  const quoted = value(order.amount), received = value(order.advancePaid);
+  const known = quoted !== null && received !== null;
+  return {quoted,received,balance:known ? Math.max(0,quoted-received) : null,excess:known ? Math.max(0,received-quoted) : null};
+}
+
+function orderTimingRecorded(order) {
+  return [order.actualDays,order.estDays].every(value => value != null && String(value).trim() !== "" && Number.isFinite(Number(value)));
+}
+
 function applyGarmentJobEdit(job, fields) {
   if (job.cancellation) throw new Error("Reinstate the garment before changing its measurements or progress.");
   const updated = { ...copyGarmentData(job), ...fields };
@@ -1827,7 +1865,7 @@ function reviseGarmentCancellation(job, reason, reinstate = false) {
 }
 
 const ORDER_COMMERCIAL_FIELDS = {
-  amount:"Order quote", advancePaid:"Recorded advance paid", fabricMeters:"Fabric metres used for costing",
+  amount:"Order quote", advancePaid:"Recorded received total", fabricMeters:"Fabric metres used for costing",
   reservedFabricMeters:"Fabric reservation metres",
   fabricRate:"Fabric rate", trimsCost:"Trims cost", cutterCost:"Cutter cost", karigarCost:"Maker cost",
   trialShippingCost:"Trial / shipping cost", swatchCode:"Order fabric swatch", fabric:"Fabric description", liningCode:"Lining code"
@@ -5021,11 +5059,11 @@ async function saveMeasure() {
    4. ORDERS & WORKSHOP PIPELINE VIEW (With Trial Date & Sequence of Events)
    ============================================================================ */
 function orderRows(q, stageFilter) {
-  q = (q || "").toLowerCase();
+  q = (q || "").trim().toLowerCase();
   const list = Object.values(DB.orders)
     .map(o => Object.assign({ _c: DB.clients[o.clientId] }, o))
     .filter(o => {
-      const matchQ = !q || ((o.orderNo || "") + " " + (o._c ? o._c.name : "") + " " + (o.garments || "") + " " + garmentOrderDescription(o) + " " + (o.swatchCode || "") + " " + (o.fabric || "") + " " + (o.assignedTo || "") + " " + (o.karigarAssigned || "")).toLowerCase().includes(q);
+      const matchQ = !q || orderSearchText(o,o._c).includes(q);
       const matchS = !stageFilter || o.status === stageFilter;
       return matchQ && matchS;
     })
@@ -5037,9 +5075,8 @@ function orderRows(q, stageFilter) {
   return list.map(o => {
     const ec = calcOrderEconomics(o);
     const isOverDays = ec.daysVariance > 0;
-    const wf = o.garmentJobs?.length ? o.garmentJobs.filter(job => !job.cancellation).flatMap(job => job.workflow) : o.workflow || [];
-    const doneSteps = wf.filter(s => s.done).length;
-    const nextPending = wf.find(s => !s.done);
+    const progress = orderWorkflowSummary(o);
+    const timingRecorded = orderTimingRecorded(o);
     return `<tr class="rowlink" data-act="openSequenceModal" data-id="${o.id}">
       <td>
         <b>${esc(o.orderNo)}</b>
@@ -5060,13 +5097,13 @@ function orderRows(q, stageFilter) {
         <div style="color:var(--gold-strong);font-weight:700;">📅 Trial: ${fmtDate(o.trialDate)}</div>
         <div style="font-weight:600;">🚚 Due: ${fmtDate(o.delivery)}</div>
         <div style="color:${isOverDays ? "var(--danger)" : "var(--green)"};font-weight:700;font-size:11px;">
-          ${ec.actualDays}d / ${ec.estDays}d est ${isOverDays ? `(+${ec.daysVariance}d)` : `(On time)`}
+          ${timingRecorded ? `${ec.actualDays}d / ${ec.estDays}d est ${isOverDays ? `(+${ec.daysVariance}d)` : `(On time)`}` : "Timing not recorded"}
         </div>
       </td>
       <td style="font-size:12px;">
-        <div style="font-weight:700;color:var(--navy);">✓ ${doneSteps} of ${wf.length} steps done</div>
+        <div style="font-weight:700;color:var(--navy);">✓ ${progress.done} of ${progress.total} steps recorded done</div>
         <div style="font-size:11px;color:var(--ink-soft);">
-          ${nextPending ? `Next: <b>${esc(nextPending.label.replace(/^\d+\.\s*/, ""))}</b> (${esc(nextPending.assignedTo)})` : `<span style="color:var(--green);font-weight:700;">All Steps Completed</span>`}
+          ${esc(orderWorkflowNote(progress))}
         </div>
       </td>
       <td onclick="event.stopPropagation()">
@@ -5106,6 +5143,7 @@ function vGarmentJobs() {
   const order = DB.orders[workspace.orderId];
   const jobs = workspace.jobs;
   const savedIds = new Set((order.garmentJobs || []).map(job => job.id));
+  const payments = recordedOrderPayments(order);
   return `
     <div class="pagehead">
       <button class="crumb" data-go="orders">← Orders</button>
@@ -5115,7 +5153,7 @@ function vGarmentJobs() {
       <b>${esc(DB.clients[order.clientId]?.name || "Client")}</b>
       <p>${order.garmentJobs?.length ? "Previous garment description" : "Recorded garments"} · ${esc(order.garments || "No garment description recorded")}</p>
       <p>${jobs.length ? esc(garmentProgressText(jobs)) : "Review the description and add each garment before confirming the breakdown."}</p>
-      <p>Order quote ${order.amount == null ? "Unrecorded" : fmtINR(order.amount)} · Advance ${order.advancePaid == null ? "Unrecorded" : fmtINR(order.advancePaid)}</p>
+      <p id="gjPaymentSummary">Order quote ${payments.quoted === null ? "Unrecorded" : fmtINR(payments.quoted)} · Received total ${payments.received === null ? "Unrecorded" : fmtINR(payments.received)} · Balance due ${payments.balance === null ? "Unrecorded" : fmtINR(payments.balance)}${payments.excess > 0 ? " · Excess received " + fmtINR(payments.excess) : ""}</p>
       ${order.commercialReviewRequired ? '<p role="status"><b>Fabric / payment review pending.</b> Garment changes have not adjusted order totals or released reserved fabric.</p>' : ""}
       ${order.productionBeforeGarmentJobs ? `<p>Previous order stage · ${esc(order.productionBeforeGarmentJobs.status)}</p>` : ""}
       ${order.workflow?.length ? '<button class="btn sm" id="gjLegacy">View previous order workflow</button>' : ""}
@@ -6592,8 +6630,9 @@ function orderModal(o, clientId, sourceDocket = null) {
           <input id="omAmount" type="number" step="500" value="${esc(o.amount ?? "")}">
         </div>
         <div class="field">
-          <label>Advance Received (₹)</label>
+          <label for="omAdvance">Recorded received total (₹)</label>
           <input id="omAdvance" type="number" step="500" value="${esc(o.advancePaid ?? "")}">
+          <small>Enter verified cumulative receipts, including advance and final payments. Individual payment transactions are not tracked here.</small>
         </div>
         <div class="field full" style="grid-column: span 2;">
           <label>Bottleneck / Pain Point Note (If Delayed)</label>
@@ -6613,7 +6652,7 @@ function orderModal(o, clientId, sourceDocket = null) {
       <div class="field"><label for="omReserved">Reserved fabric (m)</label><input type="number" min="0" step="any" id="omReserved" value="${esc(orderFabricReservation(o))}"></div>
       <p>Use 0 to release the order's remaining fabric reservation. Fabric metres used for costing, recorded costs, quote and advance remain separate totals above. Stock already marked as allocated in the fabric library is not rewritten.</p>
       <div class="field"><label for="omAdjustmentReason">Reason / review note</label><textarea id="omAdjustmentReason" placeholder="Record the agreed change, or explain why totals remain unchanged"></textarea></div>
-      <label style="display:flex;align-items:start;gap:8px;"><input type="checkbox" id="omReviewConfirmed" style="width:22px;height:22px;flex-shrink:0;">I have reviewed fabric, quote and recorded advance for these garment changes.</label>
+      <label style="display:flex;align-items:start;gap:8px;"><input type="checkbox" id="omReviewConfirmed" style="width:22px;height:22px;flex-shrink:0;">I have reviewed fabric, quote and recorded received total for these garment changes.</label>
       <p>This records reviewed totals; it does not process a refund or create a payment transaction.</p>
       <p id="omReviewError" role="alert"></p>
     </div>` : ""}
@@ -6667,8 +6706,8 @@ function orderModal(o, clientId, sourceDocket = null) {
       <span>Cloth Cost: <b>${fmtINR(ec.fabricTotal)}</b></span>
       <span>Total Cost: <b>${fmtINR(ec.totalCost)}</b></span>
       <span>Net Profit: <b style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};">${fmtINR(ec.profit)} (${ec.marginPct.toFixed(1)}%)</b></span>
-      <span>Time Variance: <b style="color:${ec.daysVariance > 0 ? "var(--danger)" : "var(--green)"};">${ec.daysVariance > 0 ? `+${ec.daysVariance}d over est` : `On time`}</b></span>
-      <span>Balance Due: <b>${fmtINR(ec.balance)}</b></span>
+      <span>Time Variance: <b style="color:${ec.daysVariance > 0 ? "var(--danger)" : "var(--green)"};">${!orderTimingRecorded(temp) ? "Timing not recorded" : ec.daysVariance > 0 ? `+${ec.daysVariance}d over est` : `On time`}</b></span>
+      <span>Balance Due: <b>${recordedOrderPayments(temp).balance === null ? "Unrecorded" : fmtINR(ec.balance)}</b></span>
     `;
   };
 
