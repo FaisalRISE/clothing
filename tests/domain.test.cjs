@@ -132,6 +132,24 @@ test('a suit and two shirts become four distinct jobs without fabric or progress
   assert.throws(() => a.run('makeGarmentJobs("shirt", 1.5, {})'), /whole quantity/);
 });
 
+test('additional trials have stable numbering and preserve every existing task and completed fitting', () => {
+  const a = app();
+  a.run('globalThis.workflow = buildDefaultWorkflow("", "New", "", ""); workflow[5] = {...workflow[5],done:true,doneDate:"2026-11-01",notes:"Retain balance findings",scheduledDate:"2026-10-30"};');
+  const before = copy(a.run('workflow'));
+  a.run('globalThis.withSecond = appendAdditionalTrial(workflow); globalThis.withThird = appendAdditionalTrial(withSecond);');
+  const extended = copy(a.run('withThird'));
+  assert.deepEqual(copy(a.run('workflow')), before);
+  assert.deepEqual(extended.filter(step => !['trial_2','trial_3'].includes(step.key)), before);
+  assert.deepEqual(extended.slice(5,9).map(step => step.key), ['trial_1','trial_2','trial_3','finishing']);
+  for (const step of extended.filter(step => ['trial_2','trial_3'].includes(step.key))) {
+    assert.equal(step.done, false);
+    for (const key of ['doneDate','scheduledDate','assignedTo','daysTaken','notes']) assert.equal(step[key], '');
+  }
+  a.run('globalThis.legacyExtra = appendAdditionalTrial([{key:"trial_11",stage:"1st Trial / Fitting",done:true,notes:"Keep"}]);');
+  assert.equal(a.run('legacyExtra[1].label'), '12th Trial / Fitting');
+  assert.equal(a.run('legacyExtra[0].notes'), 'Keep');
+});
+
 test('garment adoption and independent stages preserve legacy history and all financial fields', () => {
   const a = app({modisto_bespoke_v6: JSON.stringify(legacy)});
   a.run('globalThis.workspace = {orderId:"o", original:JSON.stringify(DB.orders.o), jobs:makeGarmentJobs("suit2",1,{}), versions:{}}; commitGarmentWorkspace(workspace);');

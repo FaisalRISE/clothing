@@ -1,0 +1,126 @@
+const { test, expect } = require('@playwright/test');
+
+async function openJobs(page) {
+  await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-act="openGarments"][data-id="o_3"]').click();
+}
+
+test('additional garment trials retain editor changes, prior history and other garments after reload', async ({page}, testInfo) => {
+  await page.goto('/?demo=1');
+  await openJobs(page);
+  await page.locator('#gjAdd').click();
+  await page.locator('#gjApply').click();
+  await page.locator('#gjSave').click();
+  const before = await page.evaluate(() => {
+    const job = DB.orders.o_3.garmentJobs[0];
+    job.status = 'Ready';
+    job.workflow[5] = {...job.workflow[5],done:true,doneDate:'2026-11-01',notes:'Keep first fitting findings'};
+    job.workflow[7] = {...job.workflow[7],done:true,doneDate:'2026-11-03',notes:'Keep nonsequential completion'};
+    DB.orders.o_3.status = garmentOrderStage(DB.orders.o_3.garmentJobs);
+    writeDatabase(DB);
+    return JSON.parse(JSON.stringify(DB.orders.o_3));
+  });
+  await page.reload();
+  await openJobs(page);
+  const id = before.garmentJobs[0].id;
+  await page.locator('[data-job-edit="' + id + '"]').click();
+  await page.locator('#gjNotes').fill('Keep unsaved instructions');
+  await page.locator('#gjAddTrial').click();
+  await expect(page.locator('#gjStage')).toHaveValue('1st Trial / Fitting');
+  await expect(page.locator('#gjNotes')).toHaveValue('Keep unsaved instructions');
+  await page.getByLabel('Scheduled date for 2nd Trial / Fitting', {exact:true}).fill('2026-11-15');
+  await page.locator('[data-gj-note="6"]').fill('Check sleeve balance at second trial');
+  await page.locator('#gjAddTrial').click();
+  await expect(page.getByLabel('Scheduled date for 2nd Trial / Fitting', {exact:true})).toHaveValue('2026-11-15');
+  await expect(page.locator('[data-gj-note="6"]')).toHaveValue('Check sleeve balance at second trial');
+  await page.getByLabel('Scheduled date for 3rd Trial / Fitting', {exact:true}).fill('2026-11-20');
+  await expect(page.locator('[data-gj-done="6"]')).not.toBeChecked();
+  await expect(page.locator('[data-gj-done="7"]')).not.toBeChecked();
+  await page.locator('#gjApply').click();
+  expect(await page.evaluate(() => DB.orders.o_3.garmentJobs[0].workflow.length)).toBe(9);
+  await page.locator('#gjSave').click();
+  await expect(page.locator('#gjStatus')).toHaveText('Garment jobs saved locally');
+  await page.reload();
+  await openJobs(page);
+  const saved = await page.evaluate(() => JSON.parse(JSON.stringify(DB.orders.o_3)));
+  expect(saved.garmentJobs[0].workflow.filter(step => !['trial_2','trial_3'].includes(step.key))).toEqual(before.garmentJobs[0].workflow);
+  expect(saved.garmentJobs[1]).toEqual(before.garmentJobs[1]);
+  expect(saved.workflow).toEqual(before.workflow);
+  expect(saved.amount).toBe(before.amount);
+  expect(saved.advancePaid).toBe(before.advancePaid);
+  expect(saved.fabricMeters).toBe(before.fabricMeters);
+  await page.locator('[data-job-edit="' + id + '"]').click();
+  await expect(page.getByLabel('Scheduled date for 3rd Trial / Fitting', {exact:true})).toHaveValue('2026-11-20');
+  await page.locator('[data-gj-done="6"]').check();
+  await page.locator('[data-gj-date="6"]').fill('2026-11-16');
+  await page.locator('#gjApply').click();
+  await page.locator('#gjSave').click();
+  const completed = await page.evaluate(() => DB.orders.o_3.garmentJobs[0].workflow);
+  expect(completed[0].done).toBe(false);
+  expect(completed[6].doneDate).toBe('2026-11-16');
+  expect(completed[6].scheduledDate).toBe('2026-11-15');
+  expect(completed[7].done).toBe(false);
+  await page.locator('[data-job-edit="' + id + '"]').click();
+  await page.locator('#gjAddTrial').click();
+  await expect(page.getByLabel('Scheduled date for 4th Trial / Fitting', {exact:true})).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize().width);
+  await page.screenshot({path:testInfo.outputPath('additional-trial.png')});
+  await page.locator('#gjCancel').click();
+  await page.locator('[data-job-edit="' + id + '"]').click();
+  await expect(page.getByLabel('Scheduled date for 4th Trial / Fitting', {exact:true})).toHaveCount(0);
+});
+
+test('legacy order tracker adds trials safely and preserves drafts on a failed or stale save', async ({page}) => {
+  await page.goto('/?demo=1');
+  const before = await page.evaluate(() => {
+    const order = DB.orders.o_3;
+    order.workflow = buildDefaultWorkflow('', 'New', 'Different task cutter', 'Different task maker');
+    order.workflow[5] = {...order.workflow[5],done:true,doneDate:'2026-11-01',notes:'Retain original fitting'};
+    writeDatabase(DB);
+    return JSON.parse(JSON.stringify(order));
+  });
+  await page.locator('[data-v="orders"]').click();
+  await page.locator('button[data-act="openSequenceModal"][data-id="o_3"]').click();
+  await page.locator('.seq-note[data-idx="3"]').fill('Keep cutting note while adding trials');
+  await page.locator('#seqAddTrial').click();
+  await page.getByLabel('Scheduled date for 2nd Trial / Fitting', {exact:true}).fill('2026-11-15');
+  await page.locator('.seq-note[data-idx="6"]').fill('Second fitting sleeve correction');
+  await page.locator('#seqAddTrial').click();
+  await expect(page.locator('.seq-note[data-idx="3"]')).toHaveValue('Keep cutting note while adding trials');
+  await expect(page.getByLabel('Scheduled date for 2nd Trial / Fitting', {exact:true})).toHaveValue('2026-11-15');
+  await page.getByLabel('Scheduled date for 3rd Trial / Fitting', {exact:true}).fill('2026-11-20');
+  await page.evaluate(() => {
+    window.realStorageSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => {throw new Error('Simulated storage failure');};
+  });
+  await page.locator('#seqSave').click();
+  await expect(page.locator('#toast')).toContainText('Simulated storage failure');
+  await expect(page.locator('#overlay')).toBeVisible();
+  expect(await page.evaluate(() => DB.orders.o_3.workflow.length)).toBe(9);
+  await page.evaluate(() => {Storage.prototype.setItem = window.realStorageSetItem;});
+  await page.locator('#seqSave').click();
+  await page.reload();
+  await page.locator('[data-v="orders"]').click();
+  await page.locator('button[data-act="openSequenceModal"][data-id="o_3"]').click();
+  await expect(page.locator('.seq-chk')).toHaveCount(11);
+  await expect(page.locator('.seq-chk[data-idx="5"]')).toBeChecked();
+  await expect(page.locator('.seq-chk[data-idx="6"]')).not.toBeChecked();
+  await expect(page.getByLabel('Scheduled date for 3rd Trial / Fitting', {exact:true})).toHaveValue('2026-11-20');
+  const saved = await page.evaluate(() => DB.orders.o_3);
+  expect(saved.workflow[5]).toMatchObject(before.workflow[5]);
+  for (const key of ['amount','advancePaid','fabricMeters','garments','assignedTo','karigarAssigned','status']) expect(saved[key]).toEqual(before[key]);
+  await page.locator('.seq-chk[data-idx="6"]').check();
+  expect(await page.evaluate(() => DB.orders.o_3.workflow[0].done)).toBe(false);
+  expect(await page.evaluate(() => DB.orders.o_3.workflow[7].done)).toBe(false);
+  await page.locator('#seqAddTrial').click();
+  await page.evaluate(() => {
+    const other = JSON.parse(localStorage.getItem(DB_KEY));
+    other.orders.o_3.advancePaid = 71000;
+    localStorage.setItem(DB_KEY, JSON.stringify(other));
+  });
+  await page.locator('#seqSave').click();
+  await expect(page.locator('#toast')).toContainText('changed in another tab');
+  await expect(page.getByLabel('Scheduled date for 4th Trial / Fitting', {exact:true})).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem(DB_KEY)).orders.o_3.advancePaid)).toBe(71000);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem(DB_KEY)).orders.o_3.workflow.length)).toBe(11);
+});

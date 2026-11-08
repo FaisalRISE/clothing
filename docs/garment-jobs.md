@@ -8,6 +8,12 @@ Staff choose the saved measurements, fabric swatch and maker for each batch or i
 
 The order displays how many garments are ready. Its overall stage follows the earliest unfinished garment stage. Payments, quoted value, committed order fabric metres and existing workflow entries remain at order level. Team shows active garment jobs under their assigned maker.
 
+## Additional trials
+
+Open **Edit garment & progress → Add trial / fitting** to add a second, third or later fitting for that garment. Enter its scheduled date and notes, then use **Apply to garment list → Save garment jobs**. Adding a trial to a garment at fitting, finishing, ready or delivered stage returns its current stage to fitting; completed tasks and earlier fitting dates remain intact. Tick the new trial only when it is completed. Scheduling it does not mark any task complete. Cancel discards additions made in the editor.
+
+For orders awaiting garment breakdown, **Sequence & Trial Dates → Add trial / fitting** adds the trial to the existing order workflow. Choose **Save Sequence & Sync Stage** to keep dates and notes. As before, changing a sequence checkbox or stage also saves immediately. Existing trial numbering is respected. The pipeline retains its existing fitting-stage category; individual rows identify the second, third and later trials.
+
 ## Measurements
 
 Selecting a docket creates an immutable measurement copy. Jobs sharing the same saved docket reuse one copy. Editing the original docket leaves those job copies intact. **View measurement copy** shows the garment's fields in the cutter's sequence, with units, options and notes. To adopt later edits, explicitly select **Replace with the latest saved measurements**. Previous copies remain stored and job activity retains their references.

@@ -1269,6 +1269,7 @@ tr.rowlink:hover { background: #faf7f0; }
 .garment-tasks { display: grid; gap: 10px; margin-top: 14px; }
 .garment-task { border: 1px solid var(--line); padding: 10px; border-radius: 7px; }
 .garment-task label { display: flex; gap: 8px; align-items: center; }
+.garment-task .garment-task-date { display: block; margin-top: 8px; }
 .garment-task input[type="checkbox"] { width: 22px; height: 22px; flex-shrink: 0; }
 .garment-task input[type="date"], .garment-task input[type="text"] { max-width: 100%; width: 100%; margin-top: 6px; padding: 6px; }
 .measurement-copy { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
@@ -1580,6 +1581,29 @@ const GARMENT_JOB_BUNDLES = {
 
 function copyGarmentData(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function isTrialWorkflowStep(step) {
+  return /^trial_\d+$/.test(step.key || "") || step.stage === "1st Trial / Fitting";
+}
+
+function appendAdditionalTrial(workflow) {
+  const result = copyGarmentData(workflow);
+  const trials = result.filter(isTrialWorkflowStep);
+  let number = Math.max(1, trials.length, ...trials.map(step =>
+    Number(step.trialNumber || (step.key || "").match(/^trial_(\d+)$/)?.[1]) || 1
+  )) + 1;
+  while (result.some(step => step.key === "trial_" + number)) number++;
+  const suffix = number % 100 >= 11 && number % 100 <= 13 ? "th" : ({1:"st",2:"nd",3:"rd"}[number % 10] || "th");
+  let insertAt = result.findIndex(step => step.key === "finishing");
+  for (let i = 0; i < result.length; i++) if (isTrialWorkflowStep(result[i])) insertAt = i + 1;
+  if (insertAt < 0) insertAt = result.length;
+  result.splice(insertAt, 0, {
+    key: "trial_" + number, trialNumber: number, label: number + suffix + " Trial / Fitting",
+    stage: "1st Trial / Fitting", scheduledDate: "", done: false, doneDate: "",
+    daysTaken: "", assignedTo: "", notes: ""
+  });
+  return result;
 }
 
 function makeGarmentJobs(type, quantity, defaults, existingJobs = []) {
@@ -4950,6 +4974,14 @@ function garmentJobModal(jobId) {
   const workspace = GARMENT_WORKSPACE;
   const job = workspace.jobs.find(item => item.id === jobId);
   const editing = Boolean(job);
+  let draftWorkflow = copyGarmentData(job?.workflow || []);
+  const taskFields = () => draftWorkflow.map((step, index) => `
+    <div class="garment-task">
+      <label><input type="checkbox" data-gj-done="${index}" ${step.done ? "checked" : ""}>${esc(step.label)}</label>
+      ${isTrialWorkflowStep(step) ? `<label class="garment-task-date">Scheduled date<input type="date" data-gj-planned="${index}" aria-label="Scheduled date for ${esc(step.label)}" value="${esc(step.scheduledDate || "")}"></label>` : ""}
+      <label class="garment-task-date">Completed date<input type="date" data-gj-date="${index}" aria-label="Completion date for ${esc(step.label)}" value="${esc(step.doneDate || "")}"></label>
+      <input type="text" data-gj-note="${index}" aria-label="Notes for ${esc(step.label)}" value="${esc(step.notes || "")}" placeholder="Task notes">
+    </div>`).join("");
   openModal(`
     <h2>${editing ? "Edit " + esc(job.label) : "Add garment jobs"}</h2>
     ${editing ? `<div class="field"><label for="gjLabel">Garment name</label><input id="gjLabel" value="${esc(job.label)}"></div>` : `
@@ -4966,12 +4998,9 @@ function garmentJobModal(jobId) {
         ${ORDER_STAGES.map(stage => `<option ${stage === job.status ? "selected" : ""}>${esc(stage)}</option>`).join("")}
       </select></div>
       <div class="field"><label for="gjNotes">Garment instructions</label><textarea id="gjNotes">${esc(job.notes || "")}</textarea></div>
-      <div class="garment-tasks">${job.workflow.map((step, index) => `
-        <div class="garment-task">
-          <label><input type="checkbox" data-gj-done="${index}" ${step.done ? "checked" : ""}>${esc(step.label)}</label>
-          <input type="date" data-gj-date="${index}" aria-label="Completion date for ${esc(step.label)}" value="${esc(step.doneDate || "")}">
-          <input type="text" data-gj-note="${index}" aria-label="Notes for ${esc(step.label)}" value="${esc(step.notes || "")}" placeholder="Task notes">
-        </div>`).join("")}</div>` : "<p>Confirm the components, then save the garment list to start tracking them.</p>"}
+      <h3>Trials &amp; workshop progress</h3>
+      <button type="button" class="btn" id="gjAddTrial">＋ Add trial / fitting</button>
+      <div class="garment-tasks" id="gjTasks">${taskFields()}</div>` : "<p>Confirm the components, then save the garment list to start tracking them.</p>"}
     <p id="gjError" role="alert"></p>
     <div class="actions"><button class="btn" id="gjCancel">Cancel</button><button class="btn primary" id="gjApply">Apply to garment list</button></div>
   `);
@@ -4985,19 +5014,32 @@ function garmentJobModal(jobId) {
     $("#gjQty").oninput = preview;
     preview();
   }
+  const readTaskFields = () => draftWorkflow.map((step, index) => {
+    const done = $(`[data-gj-done="${index}"]`).checked;
+    const date = $(`[data-gj-date="${index}"]`).value;
+    const updated = { ...step, done,
+      doneDate: done ? (date || (step.done ? step.doneDate : "") || new Date().toISOString().slice(0, 10)) : "",
+      notes: $(`[data-gj-note="${index}"]`).value };
+    const planned = $(`[data-gj-planned="${index}"]`);
+    if (planned && (planned.value || "scheduledDate" in step)) updated.scheduledDate = planned.value;
+    return updated;
+  });
+  if (editing) $("#gjAddTrial").onclick = () => {
+    draftWorkflow = appendAdditionalTrial(readTaskFields());
+    if (ORDER_STAGES.indexOf($("#gjStage").value) >= ORDER_STAGES.indexOf("1st Trial / Fitting")) {
+      $("#gjStage").value = "1st Trial / Fitting";
+    }
+    $("#gjTasks").innerHTML = taskFields();
+    const lastTrial = draftWorkflow.findLastIndex(isTrialWorkflowStep);
+    $(`[data-gj-planned="${lastTrial}"]`).focus();
+  };
   $("#gjCancel").onclick = closeModal;
   $("#gjApply").onclick = () => {
     try {
       const assignments = readGarmentAssignments(job);
       if (editing) {
-        let completionChanged = false;
-        const workflow = job.workflow.map((step, index) => {
-          const done = $(`[data-gj-done="${index}"]`).checked;
-          completionChanged ||= done !== Boolean(step.done);
-          const date = $(`[data-gj-date="${index}"]`).value;
-          return { ...step, done, doneDate: done ? (date || (step.done ? step.doneDate : "") || new Date().toISOString().slice(0, 10)) : "",
-            notes: $(`[data-gj-note="${index}"]`).value };
-        });
+        const workflow = readTaskFields();
+        const completionChanged = workflow.some(step => step.done !== Boolean(job.workflow.find(old => old.key === step.key)?.done));
         let status = $("#gjStage").value;
         if (completionChanged && status === job.status) status = workflow.find(step => !step.done)?.stage || "Delivered";
         const updated = applyGarmentJobEdit(job, {
@@ -6381,12 +6423,32 @@ function orderModal(o, clientId, sourceDocket = null) {
 function sequenceModal(orderId) {
   if (!DB.orders[orderId]) return;
   if (DB.orders[orderId].garmentJobs?.length) { openGarmentWorkspace(orderId); return; }
-  const o = JSON.parse(JSON.stringify(DB.orders[orderId]));
+  let original;
+  let o;
+  try {
+    const saved = latestStoredDatabase().orders[orderId];
+    if (!saved) throw new Error("This order is no longer available.");
+    if (saved.garmentJobs?.length) { openGarmentWorkspace(orderId); return; }
+    original = JSON.stringify(saved);
+    o = copyGarmentData(saved);
+  } catch (error) { toast(error.message); return; }
   const c = DB.clients[o.clientId] || {};
   const allEmployees = Object.values(DB.employees || {});
   if (!o.workflow || !Array.isArray(o.workflow)) {
     syncOrderStageToWorkflow(o, o.status);
   }
+  const saveSequenceChanges = () => {
+    try {
+      const latest = latestStoredDatabase();
+      if (JSON.stringify(latest.orders[o.id]) !== original) throw new Error("This order changed in another tab. Reopen the tracker before saving.");
+      const saved = copyGarmentData(o);
+      const next = { ...latest, orders: { ...latest.orders, [o.id]: saved } };
+      writeDatabase(next);
+      DB = next;
+      original = JSON.stringify(saved);
+      return true;
+    } catch (error) { toast("Could not save sequence. " + error.message); return false; }
+  };
 
   const renderModalContent = () => {
     const doneCount = o.workflow.filter(s => s.done).length;
@@ -6433,10 +6495,12 @@ function sequenceModal(orderId) {
         <span>
           ${nextPending
             ? `⏳ <b>Current Active Step (Stage: ${esc(o.status)}):</b> ${esc(nextPending.label)} — Assigned to <b>${esc(nextPending.assignedTo)}</b>`
-            : `✓ <b>All 9 Workshop Sequence Steps Completed — Order Delivered!</b>`}
+            : `✓ <b>All ${o.workflow.length} Workshop Sequence Steps Completed — Order Delivered!</b>`}
         </span>
-        <span style="font-size:11.5px;color:var(--ink-soft);">Ticking a step automatically completes prior steps</span>
+        <span style="font-size:11.5px;color:var(--ink-soft);">Tick only the step that was completed</span>
       </div>
+
+      <button type="button" class="btn" id="seqAddTrial" style="margin-bottom:10px;">＋ Add trial / fitting</button>
 
       <!-- Sequence Header -->
       <div style="border:1px solid var(--line-2);border-radius:8px;overflow:hidden;">
@@ -6462,6 +6526,9 @@ function sequenceModal(orderId) {
               <span style="font-size:10.5px;color:${isCurrentActive ? "var(--amber)" : "var(--ink-soft)"};font-weight:${isCurrentActive ? "700" : "400"};">
                 ${st.done ? "✓ Completed" : (isCurrentActive ? "▶ IN PROGRESS NOW" : "⏳ Pending")}
               </span>
+              ${isTrialWorkflowStep(st) ? `<label style="display:block;font-size:11px;margin-top:6px;">Scheduled date
+                <input type="date" class="seq-planned" data-idx="${idx}" aria-label="Scheduled date for ${esc(st.label)}" value="${esc(st.scheduledDate || "")}" style="display:block;width:100%;max-width:100%;">
+              </label>` : ""}
             </div>
             <div>
               <select class="seq-emp" data-idx="${idx}" style="border:1px solid var(--line-2);border-radius:5px;padding:4px 6px;font-size:12px;width:100%;background:#fff;">
@@ -6504,31 +6571,32 @@ function sequenceModal(orderId) {
         const daysInp = $(`.seq-days[data-idx="${i}"]`);
         const empSel = $(`.seq-emp[data-idx="${i}"]`);
         const noteInp = $(`.seq-note[data-idx="${i}"]`);
+        const plannedInp = $(`.seq-planned[data-idx="${i}"]`);
         if (empSel) step.assignedTo = empSel.value;
         if (noteInp) step.notes = noteInp.value.trim();
         if (dateInp) step.doneDate = dateInp.value;
         if (daysInp) step.daysTaken = daysInp.value !== "" ? parseFloat(daysInp.value) : "";
+        if (plannedInp && (plannedInp.value || "scheduledDate" in step)) step.scheduledDate = plannedInp.value;
       });
 
-      const firstPending = o.workflow.find(s => !s.done);
-      o.status = firstPending ? firstPending.stage : "Delivered";
-      if (firstPending && firstPending.assignedTo) {
-        if (firstPending.key === "stitch_trial" || firstPending.key === "finishing") {
-          o.karigarAssigned = firstPending.assignedTo;
-        } else {
-          o.assignedTo = firstPending.assignedTo;
-        }
-      }
       const sumDays = o.workflow.reduce((acc, s) => acc + (s.done ? (parseFloat(s.daysTaken) || 0) : 0), 0);
       if (sumDays > 0) o.actualDays = sumDays;
+    };
+
+    $("#seqAddTrial").onclick = () => {
+      syncFieldEditsFromDOM();
+      o.workflow = appendAdditionalTrial(o.workflow);
+      if (ORDER_STAGES.indexOf(o.status) >= ORDER_STAGES.indexOf("1st Trial / Fitting")) o.status = "1st Trial / Fitting";
+      renderModalContent();
+      const index = o.workflow.findLastIndex(isTrialWorkflowStep);
+      $(`.seq-planned[data-idx="${index}"]`).focus();
     };
 
     // Quick Stage Dropdown inside Sequence Modal
     $("#seqStageQuickSelect").onchange = e => {
       syncFieldEditsFromDOM();
       syncOrderStageToWorkflow(o, e.target.value);
-      DB.orders[o.id] = JSON.parse(JSON.stringify(o));
-      persist();
+      saveSequenceChanges();
       renderModalContent();
     };
 
@@ -6549,8 +6617,7 @@ function sequenceModal(orderId) {
         o.status = firstPending ? firstPending.stage : "Delivered";
         const sumDays = o.workflow.reduce((acc, s) => acc + (s.done ? (parseFloat(s.daysTaken) || 0) : 0), 0);
         o.actualDays = sumDays;
-        DB.orders[o.id] = JSON.parse(JSON.stringify(o));
-        persist();
+        saveSequenceChanges();
         renderModalContent();
       };
     });
@@ -6565,8 +6632,7 @@ function sequenceModal(orderId) {
     };
     $("#seqSave").onclick = () => {
       syncFieldEditsFromDOM();
-      DB.orders[o.id] = JSON.parse(JSON.stringify(o));
-      persist();
+      if (!saveSequenceChanges()) return;
       closeModal();
       toast(`Synced sequence & stage for ${o.orderNo} → ${o.status}`);
       render();
