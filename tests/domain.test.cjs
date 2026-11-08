@@ -150,6 +150,61 @@ test('additional trials have stable numbering and preserve every existing task a
   assert.equal(a.run('legacyExtra[0].notes'), 'Keep');
 });
 
+test('workshop sheets use immutable garment measurements and preserve precision, options and trial notes without writing data', () => {
+  const a = app({modisto_bespoke_v6:JSON.stringify(legacy)});
+  a.run(`DB.measurements.m.measures={"Suit Length Front":"29.25","Chest (Suit)":"0","Belly (Suit)":"","Legacy balance mark":0};
+    DB.measurements.m.texts={shoulderDownInches:0,suitComments:"Keep shoulder balance",shirtComments:"Other garment only",legacyMark:"Retain legacy mark"};
+    DB.measurements.m.ticks={"Shoulder Down":"Right Down",Pocket:"No"};
+    globalThis.versions={}; const versionId=captureGarmentMeasurement("m",DB,versions);
+    DB.measurementVersions=versions;
+    DB.orders.o.garmentJobs=makeGarmentJobs("suit2",1,{measurementVersionId:versionId,maker:"Saved maker",swatchCode:"JOB-FABRIC"});
+    DB.orders.o.garmentJobs[0].workflow=appendAdditionalTrial(DB.orders.o.garmentJobs[0].workflow);
+    Object.assign(DB.orders.o.garmentJobs[0].workflow[6],{scheduledDate:"2026-11-20",notes:"Second fitting balance"});
+    DB.measurements.m.measures["Suit Length Front"]="99";`);
+  const before = copy(a.run('DB'));
+  const sheet = copy(a.run('buildGarmentWorkshopSheet(DB,"o",DB.orders.o.garmentJobs[0].id)'));
+  assert.equal(sheet.sections[0].rows[0].value, '29.25');
+  assert.equal(sheet.sections[0].rows[1].value, '0');
+  assert.equal(sheet.sections[0].rows[2].value, '');
+  assert.deepEqual(sheet.sections[0].rows.map(row=>row.label),copy(a.run('SCHEMA.upper.measures')));
+  assert.equal(sheet.swatchCode, 'JOB-FABRIC');
+  assert.equal(sheet.maker, 'Saved maker');
+  assert.ok(sheet.instructions.some(row=>row.label==='Shoulder correction' && row.value===0 && row.numeric));
+  assert.ok(!sheet.instructions.some(row=>row.value==='Other garment only'));
+  assert.equal(sheet.otherNotes[0].value, 'Retain legacy mark');
+  assert.ok(sheet.otherNotes.some(row=>row.label==='Legacy balance mark' && row.value===0 && row.numeric));
+  assert.equal(sheet.trials[1].scheduledDate, '2026-11-20');
+  assert.equal(sheet.trials[1].done, false);
+  assert.equal(sheet.trials[1].notes, 'Second fitting balance');
+  assert.ok(!('amount' in sheet) && !('advancePaid' in sheet));
+  assert.deepEqual(copy(a.run('DB')),before);
+  assert.equal(a.storage.has('modisto_bespoke_v7'),false);
+  const shirt = copy(a.run('DB.orders.o.garmentJobs=makeGarmentJobs("shirt",1,{measurementVersionId:DB.orders.o.garmentJobs[0].measurementVersionId}); buildGarmentWorkshopSheet(DB,"o",DB.orders.o.garmentJobs[0].id)'));
+  assert.ok(shirt.instructions.some(row=>row.label==='Shoulder correction' && row.value===0));
+  assert.ok(shirt.options.some(row=>row.label==='Shoulder Down' && row.value==='Right Down'));
+});
+
+test('every garment workshop sheet has its own section and supplementary upper-body references where needed', () => {
+  const a = app({modisto_bespoke_v6:JSON.stringify(legacy)});
+  a.run('globalThis.versions={}; globalThis.versionId=captureGarmentMeasurement("m",DB,versions); DB.measurementVersions=versions;');
+  for (const type of ['jacket','trousers','shirt','waistcoat','bandi','sherwani','kurta','pyjama']) {
+    a.context.garmentType = type;
+    a.run('DB.orders.o.garmentJobs=makeGarmentJobs(garmentType,1,{measurementVersionId:versionId});');
+    const sheet = copy(a.run('buildGarmentWorkshopSheet(DB,"o",DB.orders.o.garmentJobs[0].id)'));
+    assert.equal(sheet.sections.length, ['waistcoat','bandi','sherwani','kurta'].includes(type) ? 2 : 1);
+    if (type === 'kurta') assert.deepEqual(sheet.sections[1].rows.map(row=>row.label),['Kurta Length']);
+    if (type === 'sherwani') assert.ok(!sheet.sections[1].rows.some(row=>row.label==='Kurta Length'));
+  }
+});
+
+test('workshop sheets reject missing or cross-client saved copies without falling back to current docket or order fabric', () => {
+  const a = app({modisto_bespoke_v6:JSON.stringify(legacy)});
+  a.run('DB.orders.o.garmentJobs=makeGarmentJobs("shirt",1,{});');
+  assert.throws(()=>a.run('buildGarmentWorkshopSheet(DB,"o",DB.orders.o.garmentJobs[0].id)'), /Choose saved measurements/);
+  a.run('DB.measurementVersions={bad:{clientId:"other",snapshot:{clientId:"other"}}}; DB.orders.o.garmentJobs[0].measurementVersionId="bad";');
+  assert.throws(()=>a.run('buildGarmentWorkshopSheet(DB,"o",DB.orders.o.garmentJobs[0].id)'), /does not belong/);
+});
+
 test('garment adoption and independent stages preserve legacy history and all financial fields', () => {
   const a = app({modisto_bespoke_v6: JSON.stringify(legacy)});
   a.run('globalThis.workspace = {orderId:"o", original:JSON.stringify(DB.orders.o), jobs:makeGarmentJobs("suit2",1,{}), versions:{}}; commitGarmentWorkspace(workspace);');
