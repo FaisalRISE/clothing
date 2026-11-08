@@ -22,7 +22,11 @@ The browser suite uses isolated browser contexts and synthetic/sample records. I
 
 ## Data and recovery
 
-Data stays in the browser's localStorage, separately for each origin, browser profile and device. Local preview cannot see the live site's storage. No shared database or authentication is introduced here. Optional Google Sheets export remains a one-way, unacknowledged request.
+The published application and normal local preview keep data in the browser's localStorage, separately for each origin, browser profile and device. Local preview cannot see the live site's storage. Optional Google Sheets export remains a one-way, unacknowledged request in that browser-local mode.
+
+An opt-in **local shared-data staging environment** is available with `npm run shared:start` on port 4188. It has a separate embedded PostgreSQL database, owner/office/workshop test accounts, acknowledged saves, conflict detection and reviewed backup imports. It never automatically imports browser records. Read [the staging setup and recovery guide](docs/shared-staging.md) before starting it. Hosting and managed authentication are deferred; it does not connect to either RISE Supabase project. Use synthetic records only.
+
+Run `npm run test:shared` and `npm run test:shared:browser` to verify that separate environment. These do not require a hosted account or paid service.
 
 Read [the measurement milestone report](docs/measurement-milestone.md) before using this version with an existing backup. Export JSON from every browser or device holding business records before rollout.
 

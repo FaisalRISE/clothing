@@ -4,7 +4,14 @@
   "scripts": {
     "start": "node scripts/serve.cjs",
     "test": "node --test tests/domain.test.cjs",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "shared:start": "node server/shared-server.cjs",
+    "shared:contract": "node scripts/build-staging-contract.cjs",
+    "test:shared": "node scripts/build-staging-contract.cjs --check && node --test tests/shared/*.test.cjs",
+    "test:shared:browser": "playwright test --config=playwright.shared.config.cjs"
   },
-  "devDependencies": { "@playwright/test": "1.64.1" }
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "@playwright/test": "1.64.1"
+  }
 }

@@ -1,0 +1,39 @@
+# Shared-data staging (local only)
+
+User decision: build and test locally for now. No hosted project, subscription, organisation, migration or production-record change is authorised. RISE Events and RISE Sports must remain untouched.
+
+The staging implementation uses an embedded PostgreSQL test database, separate local staff accounts and database-enforced owner/office/workshop access. Hosting choice and hosted authentication integration remain deferred. It must bind only to loopback, use synthetic test records and keep its database/auth files out of Git.
+
+Office/owner use the existing application through an asynchronous storage adapter. Writes acknowledge a server transaction, patch only changed records and reject stale versions. Workshop accounts receive only assigned jobs and whitelisted measurement data, never the office dataset, client contact fields or financial values. Workshop progress changes are validated against the retained order and assignment. Roles are read from server-owned account records, never supplied by a client.
+
+Backup imports need a preview and explicit commit. Duplicate/conflicting record IDs must never be silently overwritten. Preserve unknown metadata and existing garment/fitting/financial history; the migration must not infer prices, progress or allocations. Local production-mode browser records are never automatically read or uploaded.
+
+## Start locally
+
+On Node 24, run `npm ci`, then `npm run shared:start` from the repository. Open `http://127.0.0.1:4188/`. This command creates a separate database at `.local/shared-staging/postgres` and a one-time owner setup token at `.local/shared-staging/first-owner-token.txt`. Copy the token into the first-owner form and choose a local test email, name and password (12–128 characters). There are no default credentials, invitations, emails or external authentication calls. The token stops working once an owner exists.
+
+The normal `npm start` on port 4187 still runs the browser-local application. The public GitHub Pages application is unchanged. Neither environment automatically reads or imports the other's records. Do not use real client records in staging.
+
+Use **Import preview** for a synthetic JSON backup, review the counts and conflicting IDs, then commit. Nothing is imported by simply choosing a file. Import rejects conflicting IDs, invalid record identities, missing client links and cross-client measurement copies. Unknown root metadata is preserved. Browser preferences stay per user/session; the old Sheets export URL is deliberately disabled. Keep the source JSON as the exact original backup.
+
+Use **Staff access** to create office or workshop test accounts. A workshop account must be mapped to an existing roster employee. Assign a garment's maker to that employee using the office garment workspace. Legacy names must match a unique roster name before a job can be exposed; ambiguous names remain unassigned. The projection retains an established employee mapping across a roster rename while the recorded maker stays unchanged. Owner and office use the existing business views; only owners administer accounts, import backups or change shared workspace settings. Workshop users have a separate assigned-jobs view and may update existing task completion/dates/notes and production stage. Only office staff record delivery. Cancelled or delivered jobs are read-only for workshop staff.
+
+## Saves and recovery
+
+Records commit atomically with version checks. Independent edits to different records can merge; two edits to the same record require a refresh. Saving a measurement changes its docket, leaving financial values, allocations, cutter assignments, garment measurement copies and history alone. Saved measurement versions are immutable. Existing garment identities and recorded amendment/history prefixes cannot be removed.
+
+Success feedback follows a server acknowledgement. A rejected save keeps the form. If the connection fails and the save outcome is unknown, further saves are blocked: choose **Download unconfirmed draft**, then **Refresh** and inspect the server's records before entering the remaining edits. Refresh/sign-out confirm discarding unsaved changes. Polling only announces that newer records exist; it does not overwrite a form. Shared business records and passwords are not cached in browser storage. Session expiry or account disable clears the visible dataset on the next request/poll (normally within five seconds); save drafts before the one-hour session expires.
+
+**Export records** downloads the saved business dataset. It excludes accounts, password hashes, sessions and the server audit log. For a complete local recovery copy, stop the server and copy the entire `.local/shared-staging` directory to a private backup location. Restore that directory while the server is stopped, then restart. Preserve the original directory before replacing anything. To test a clean setup, stop the server and rename the directory instead of deleting it; a new startup creates an empty environment. JSON exports can be imported into that empty environment after creating a new owner. Disk restart and JSON restoration are covered by regression tests.
+
+## Boundaries and verification
+
+This is a single-machine staging environment using embedded PostgreSQL (PGlite), with application-owned local password authentication. It is not a Supabase migration or a multi-device hosted service. PostgreSQL row policies restrict the staff database role; the loopback server provides the trusted session identity and validates privileged workshop updates. Browser clients receive no database credentials or arbitrary SQL capability. Passwords use salted scrypt hashes; sessions are hashed server-side with HttpOnly/SameSite cookies, origin and CSRF checks. The loopback HTTP cookie intentionally has no `Secure` flag; hosted HTTPS, managed authentication, password recovery, account editing and operational monitoring remain future work.
+
+Workshop responses whitelist structured job and measurement fields and exclude client contact and financial fields. Job/measurement free-text instructions are deliberately shared and must not contain private contact or financial information. Any application running under the same Windows account can access local database files; this is not isolation from other local users/processes. No public network listener or hosted deployment is supplied.
+
+Run `npm test`, `npm run test:shared`, `npm run test:browser` and `npm run test:shared:browser`. Staging browser tests create fresh in-memory databases and synthetic accounts at random loopback ports, checking desktop, portrait/landscape tablet and phone layouts. The generated measurement-field whitelist is checked against the existing schema; regenerate it with `npm run shared:contract` when schema fields change. Test results and all `.local` data stay ignored by Git.
+
+Next milestone: choose a separate hosted environment and managed authentication provider, adapt the tested storage boundary and policies, and rehearse a reviewed import/rollback using a backup. A phone/tablet can only connect to this prototype through browser emulation on the same computer; real cross-device access requires that later hosting decision. Do not expose this local server on a LAN or deploy it as-is.
+
+Verified on 8 November 2026: 21 existing domain checks, 9 shared-data checks, 64 existing browser checks and 16 staging browser checks. Coverage includes keyboard/quarter-inch entry and conversion, print preview, cross-session visibility, assigned-job restrictions, account revocation, atomic conflict handling, interrupted-save recovery, additional trials, disk restart and JSON restoration. Existing garment/trial browser checks were repeated after correcting server-returned save baselines. Implementation is on `codex/shared-data-staging`; no deployment or hosted migration is included.
