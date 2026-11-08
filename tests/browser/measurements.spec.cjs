@@ -5,6 +5,7 @@ test('measurement entry, scoped save, units, sections, scrolling and on-demand A
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/?demo=1');
   await page.locator('[data-v="measure"]').click();
+  await page.locator('#mViewMode').selectOption('relevant');
   await expect(page.locator('#abSave')).toHaveText('Save measurements');
   await expect(page.locator('#panel-summary')).toBeHidden();
   await expect(page.locator('#panel-wbs')).toBeHidden();
@@ -48,9 +49,9 @@ test('measurement entry, scoped save, units, sections, scrolling and on-demand A
   await page.emulateMedia({media:'screen'});
   await page.locator('#closePrintPreview').click();
   await expect(page.locator('#panel-summary')).toBeHidden();
-  await page.locator('#btnToggleViewMode').click();
+  await page.locator('#mViewMode').selectOption('all');
   await expect(page.locator('#panel-wbs')).toBeVisible();
-  await page.locator('#btnToggleViewMode').click();
+  await page.locator('#mViewMode').selectOption('relevant');
   await expect(page.locator('#panel-wbs')).toBeHidden();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({path:testInfo.outputPath('measurements.png'),fullPage:true});
@@ -134,4 +135,98 @@ test('new orders and enquiries have no invented business values or completion hi
   expect(order.fabricMeters).toBeNull(); expect(order.hoursSpent).toBeNull();
   expect(order.trialDate).toBe(''); expect(order.delivery).toBe('');
   expect(order.workflow.every(s=>!s.done&&!s.doneDate)).toBe(true);
+});
+
+test('tabbed measurements show one section and retain entries and the layout choice', async ({page}, testInfo) => {
+  await page.goto('/?demo=1');
+  await page.locator('[data-v="measure"]').click();
+  const mode = page.locator('#mViewMode');
+  await expect(mode).toHaveValue(testInfo.project.name === 'phone' ? 'tabs' : 'relevant');
+  await mode.selectOption('tabs');
+  await expect(page.locator('#panel-lower')).toBeVisible();
+  await expect(page.locator('#panel-upper')).toBeHidden();
+  await page.locator('[data-m="Inseam"]').fill('30.25');
+  await page.locator('#mtabs [data-p="upper"]').click();
+  await expect(page.locator('#panel-upper')).toBeVisible();
+  await expect(page.locator('#panel-lower')).toBeHidden();
+  await page.locator('#mtabs [data-p="lower"]').click();
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('30.25');
+  await mode.selectOption('all');
+  await expect(page.locator('#panel-wbs')).toBeVisible();
+  await mode.selectOption('tabs');
+  await page.locator('#abSave').click();
+  await page.reload();
+  await page.locator('[data-v="measure"]').click();
+  await expect(mode).toHaveValue('tabs');
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('30.25');
+  await expect(page.locator('#panel-wbs')).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize().width);
+});
+
+test('searchable pickers open the right docket and turn a saved docket into one reviewed order', async ({page}) => {
+  await page.goto('/?demo=1');
+  await page.locator('[data-v="measure"]').click();
+  const previousId = await page.evaluate(() => MREC.id);
+  await page.locator('[data-m="Inseam"]').fill('31.25');
+  await page.locator('#mClientSelect').click();
+  await page.locator('#pickSearch').fill('no such customer');
+  await expect(page.locator('#pickList')).toContainText('No matches');
+  await page.locator('#pickSearch').fill('client four');
+  await page.getByRole('button', {name:'Demo Client Four'}).click();
+  await page.locator('#cdCancel').click();
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('31.25');
+  await page.locator('#mClientSelect').click();
+  await page.locator('#pickSearch').fill('client four');
+  await page.locator('#pickSearch').press('Enter');
+  await page.locator('#cdOk').click();
+  await expect(page.locator('#mClientSelect')).toContainText('Demo Client Four');
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('');
+
+  await page.locator('#mSwatchCode').click();
+  await page.locator('#pickSearch').fill('royal oxford');
+  await expect(page.locator('#pickList button')).toHaveCount(1);
+  await page.getByRole('button', {name:/SW-3110/}).click();
+  await expect(page.locator('#mSwatchCode')).toContainText('SW-3110');
+  await page.getByText('Choose garment sections', {exact:true}).click();
+  await page.locator('[data-gp-id="shirt"]').click();
+  await page.locator('[data-m="Inseam"]').fill('29.25');
+  await page.locator('#abCreateOrder').click();
+  await expect(page.locator('#toast')).toContainText('Save measurements first');
+
+  const before = await page.evaluate(() => ({orders: JSON.stringify(DB.orders), swatches: JSON.stringify(DB.swatches)}));
+  await page.locator('#abSave').click();
+  const docket = await page.evaluate(() => DB.measurements[MREC.id]);
+  expect(docket.id).not.toBe(previousId);
+  expect(await page.evaluate(() => JSON.stringify(DB.orders))).toBe(before.orders);
+  await page.locator('#abCreateOrder').click();
+  await expect(page.locator('#omClient')).toHaveValue(docket.clientId);
+  await expect(page.locator('#omNo')).toHaveValue(docket.orderNo);
+  await expect(page.locator('#omGarments')).toHaveValue('1× 2-Piece Bespoke Suit + 1× Bespoke Shirt');
+  await expect(page.locator('#omSwatch')).toHaveValue('SW-3110');
+  for (const field of ['omAmount', 'omAdvance', 'omMeters', 'omRate', 'omTrialDate', 'omDeliver']) {
+    await expect(page.locator('#' + field)).toHaveValue('');
+  }
+  await page.locator('#omCancel').click();
+  expect(await page.evaluate(() => JSON.stringify(DB.orders))).toBe(before.orders);
+  await page.locator('#abCreateOrder').click();
+  await page.locator('#omNo').fill('#DEMO-004');
+  await page.locator('#omSave').click();
+  await expect(page.locator('#toast')).toContainText('already in use');
+  expect(await page.evaluate(() => JSON.stringify(DB.orders))).toBe(before.orders);
+  await page.locator('#omNo').fill(docket.orderNo);
+  await page.locator('#omSave').click();
+
+  const order = await page.evaluate(id => Object.values(DB.orders).find(o => o.measurementId === id), docket.id);
+  expect(order).toMatchObject({clientId:docket.clientId, orderNo:docket.orderNo, swatchCode:'SW-3110',
+    status:'New', amount:null, advancePaid:null, fabricMeters:null, trialDate:'', delivery:''});
+  expect(order.workflow.every(step => !step.done && !step.doneDate)).toBe(true);
+  const otherOrders = await page.evaluate(id => Object.fromEntries(Object.entries(DB.orders).filter(([key]) => key !== id)), order.id);
+  expect(otherOrders).toEqual(JSON.parse(before.orders));
+  expect(await page.evaluate(() => JSON.stringify(DB.swatches))).toBe(before.swatches);
+  expect(await page.evaluate(id => DB.measurements[id], docket.id)).toEqual(docket);
+  await page.reload();
+  await page.locator('[data-v="orders"]').click();
+  await page.locator(`[data-act="openMeasureByOrder"][data-id="${order.id}"]`).click();
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('29.25');
+  await expect(page.locator('#abCreateOrder')).toBeHidden();
 });

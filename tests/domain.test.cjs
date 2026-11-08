@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync('index.html', 'utf8');
 const source = html.match(/<script>([\s\S]*)<\/script>/)[1];
 const prefix = source.slice(source.indexOf('const SCHEMA'), source.indexOf('/* ---------------- HELPERS'));
-const conversion = source.slice(source.indexOf('function convertMeasurementUnit'), source.indexOf('let MEASURE_ALL_SECTIONS'));
+const conversion = source.slice(source.indexOf('function convertMeasurementUnit'), source.indexOf('const MEASUREMENT_VIEW_KEY'));
 const save = source.slice(source.indexOf('async function saveMeasure'), source.indexOf('/* ============================================================================\n   4. ORDERS'));
 function app(initial = {}, search = '') {
   const storage = new Map(Object.entries(initial));
