@@ -8,6 +8,22 @@ Staff choose the saved measurements, fabric swatch and maker for each batch or i
 
 The order displays how many garments are ready. Its overall stage follows the earliest unfinished garment stage. Payments, quoted value, committed order fabric metres and existing workflow entries remain at order level. Team shows active garment jobs under their assigned maker.
 
+## Order amendments and cancellation
+
+Add extra garments through **Add garment jobs**, enter the reason, then **Apply to garment list → Save garment jobs**. Each addition receives a new job ID; existing jobs and their measurement copies remain intact. The initial review of a legacy order still uses **Confirm garment breakdown**.
+
+Choose **Cancel garment**, enter a reason and apply the cancellation, then **Save garment jobs**. Only that physical garment is cancelled; other suit components remain separate. Saved garments are retained rather than deleted. Cancelled cards keep their last production stage, measurements, fabric, maker, completed tasks and fitting notes. Editing, production printing and Team workload exclude cancelled garments. **Reinstate garment** requires a reason and returns it to the retained stage; both actions remain in its activity and the order amendment history. Delivered garments need a separate return/refund process and cannot be cancelled here.
+
+Quantity reductions use cancellation of individual garments. Active quantities mean non-cancelled garments, including delivered garments still belonging to the order. Ready counts include delivered garments. When all garments are cancelled, the order appears under **Cancelled**, not Delivered. Managed orders cannot be deleted through Costing.
+
+Each saved addition, cancellation or reinstatement marks **Fabric / payment review pending**. It does not change the quote, recorded advance, costs, costing metres, fabric-library stock or allocations. The order's existing fabric reservation is retained even if cancellation closes the order. Tell the workshop about cancellation: older printed sheets cannot be recalled. An open preview rechecks the saved garment before printing and marks a stale/cancelled sheet **DO NOT PRODUCE**.
+
+Open **Review fabric & payments** after saving garment changes. Enter only verified order totals, with a reason. **Reserved fabric (m)** is separate from metres used for costing: enter 0 to release the remaining order reservation without erasing the recorded fabric cost. The fabric library's independently recorded allocation is retained; its existing availability calculation uses the larger of library allocation and order reservations. There is no per-garment stock ledger or inferred fabric consumption here.
+
+Tick **I have reviewed…** and save to clear the pending review. A reason is required even when confirming no change. Before/after values and the review note appear in **Order amendment & commercial review history**. Editing a delivery date or other non-commercial field does not clear the flag. The existing recorded-advance total can be corrected with a reason; the application does not process refunds or create payment transactions. Automatic single-garment cloth estimates are disabled in Costing for orders with a reviewed garment breakdown; the measurement workspace retains its advisory estimates.
+
+These changes add optional cancellation/history fields on jobs and amendment, commercial-review and reservation fields on orders. Existing records load without being rewritten. Export JSON in Settings before rollout; importing that export restores the previous state. When rolling back application code, also restore that pre-milestone export: older versions do not understand cancellation or separate reservation fields. Draft changes survive write failures or stale-order conflicts. Cancel/reinstate actions are reversible; refunds and financial corrections remain explicit staff decisions.
+
 ## Additional trials
 
 Open **Edit garment & progress → Add trial / fitting** to add a second, third or later fitting for that garment. Enter its scheduled date and notes, then use **Apply to garment list → Save garment jobs**. Adding a trial to a garment at fitting, finishing, ready or delivered stage returns its current stage to fitting; completed tasks and earlier fitting dates remain intact. Tick the new trial only when it is completed. Scheduling it does not mark any task complete. Cancel discards additions made in the editor.
@@ -36,7 +52,7 @@ The local JSON format adds `orders[id].garmentJobs`, `productionBeforeGarmentJob
 
 Export the database in Settings before converting existing orders. Import that export in Settings to restore it. Keep the export when rolling back to older application code. The browser still stores data separately for each device and profile.
 
-Garment-list and costing saves check for intervening edits to the order and retain the draft on conflict or storage failure. Shared storage and transactional inventory remain later milestones. Cancellation/reduction revisions and repeat-fitting templates are also pending.
+Garment-list and costing saves check for intervening edits to the order and retain the draft on conflict or storage failure. Shared storage, transactional inventory, payment/refund transactions and repeat-fitting templates remain later milestones.
 
 ## Verification
 
@@ -45,3 +61,5 @@ Data checks cover bundle expansion, stable IDs, independent progress, preserved 
 Browser checks cover the full garment flow and measurement regressions on desktop, portrait tablet, landscape tablet and phone sizes. They include reload, different fabrics and makers, partial readiness, Team assignments, explicit refresh of measurements, failed-save retry and a stale costing form.
 
 Workshop-sheet checks cover frozen measurement copies, inches/centimetres, blank versus zero, all garment types, instruction escaping, saved-state guards, keyboard print controls, returning to the garment list, and long multi-page fitting histories. A4 PDF output is inspected for page size, complete notes and repeated garment identification.
+
+Amendment checks cover one suit piece cancelled independently, reinstatement, additions, all-cancelled orders, preserved fitting history and commercial values, reservations surviving terminal stage changes, explicit paid-total/reservation reviews, delivered-job guards, immutable saved history, failed-write retries, unrelated newer records and stale preview/save protection.
