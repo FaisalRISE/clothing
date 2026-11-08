@@ -1937,9 +1937,9 @@ function commitGarmentWorkspace(workspace) {
     ...latest, measurementVersions: versions,
     orders: { ...latest.orders, [order.id]: updated }
   };
-  writeDatabase(next);
-  DB = next;
-  return updated;
+  const pending = writeDatabase(next);
+  const finish = () => { DB = next; return next.orders[order.id]; };
+  return pending?.then ? pending.then(finish) : finish();
 }
 
 /* ---------------- FICTIONAL DEMO FIXTURES ---------------- */
@@ -2489,7 +2489,8 @@ function getSeedData() {
 
 /* ---------------- LOCAL STORAGE: PRESERVE LEGACY RECORDS ---------------- */
 const DEMO_MODE = new URLSearchParams(location.search).get("demo") === "1";
-const DB_KEY = DEMO_MODE ? "modisto_bespoke_demo_v7" : "modisto_bespoke_v7";
+const SHARED_MODE = Boolean(globalThis.ModistoShared?.enabled) && !DEMO_MODE;
+const DB_KEY = DEMO_MODE ? "modisto_bespoke_demo_v7" : SHARED_MODE ? "modisto_shared_local" : "modisto_bespoke_v7";
 const RECOVERY_KEY = DB_KEY + "_recovery";
 let STORAGE_BLOCKED = false;
 
@@ -2524,6 +2525,7 @@ function syncOrderStageToWorkflow(o, newStage) {
 }
 
 function load_() {
+  if (SHARED_MODE) return emptyDatabase();
   try {
     const keys = DEMO_MODE ? [DB_KEY] : [DB_KEY, "modisto_bespoke_v6", "modisto_bespoke_v5", "modisto_bespoke_v4", "modisto_bespoke_v3"];
     for (const key of keys) {
@@ -2543,6 +2545,7 @@ let DB = load_();
 const measurementBaselines = new WeakMap();
 
 function latestStoredDatabase() {
+  if (SHARED_MODE) return normalizeDatabase(globalThis.ModistoShared.snapshot());
   const keys = DEMO_MODE ? [DB_KEY] : [DB_KEY, "modisto_bespoke_v6", "modisto_bespoke_v5", "modisto_bespoke_v4", "modisto_bespoke_v3"];
   for (const key of keys) {
     const raw = localStorage.getItem(key);
@@ -2553,6 +2556,7 @@ function latestStoredDatabase() {
 
 function writeDatabase(next) {
   if (STORAGE_BLOCKED) throw new Error("Stored data could not be loaded. Recover the original JSON before saving.");
+  if (SHARED_MODE) return globalThis.ModistoShared.commit(next);
   if (!localStorage.getItem(RECOVERY_KEY)) {
     localStorage.setItem(RECOVERY_KEY, localStorage.getItem(DB_KEY) || JSON.stringify(DB));
   }
@@ -2560,15 +2564,16 @@ function writeDatabase(next) {
 }
 
 function persist() {
-  try {
-    writeDatabase(DB);
-    updateNavCounts();
-    renderSidebarBrandAndEmployees();
-    return true;
-  } catch (e) {
-    toast("Could not save locally — export a JSON backup in Settings. " + e.message);
+  const success = () => { updateNavCounts(); renderSidebarBrandAndEmployees(); return true; };
+  const failure = e => {
+    if (SHARED_MODE) DB = normalizeDatabase(globalThis.ModistoShared.snapshot());
+    toast((SHARED_MODE ? "Shared save failed — form retained. " : "Could not save locally — export a JSON backup in Settings. ") + e.message);
     return false;
-  }
+  };
+  try {
+    const pending = writeDatabase(DB);
+    return pending?.then ? pending.then(success,failure) : success();
+  } catch (e) { return failure(e); }
 }
 
 function uid(p) {
@@ -2890,6 +2895,7 @@ function updateNavCounts() {
 
 /* ---------------- OPTIONAL SHEETS SYNC ---------------- */
 async function pushToSheets(sheetName, row) {
+  if (SHARED_MODE) return false;
   const url = DB.settings.appsScriptUrl;
   if (!url) return false;
   try {
@@ -2916,12 +2922,17 @@ let ACTIVE_ORDER_STAGE_FILTER = "";
 let SELECTED_TEAM_EMP_ID = "";
 let GARMENT_WORKSPACE = null;
 let GARMENT_PRINT_SHEET = null;
+let SHARED_FORM_DIRTY = false;
+document.addEventListener("input", event => {
+  if (SHARED_MODE && event.target.closest("#main, #overlay")) SHARED_FORM_DIRTY = true;
+});
 
 function garmentWorkspaceDirty() {
   return GARMENT_WORKSPACE && JSON.stringify(GARMENT_WORKSPACE.jobs) !== GARMENT_WORKSPACE.savedJobs;
 }
 
 function go(name, params) {
+  if (SHARED_MODE && !globalThis.ModistoShared.canNavigate(name)) { toast("This account does not have access to that workspace."); return; }
   if (VIEW.name === "garments" && name !== "garments" && garmentWorkspaceDirty()) {
     confirmDialog("Unsaved garment changes", "Save the garment list first to keep your changes.", "Discard and continue", () => {
       GARMENT_WORKSPACE = null;
@@ -2960,17 +2971,17 @@ if (sidebarLogoArea) {
 const tailorSel = $("#activeTailorSelect");
 const branchSel = $("#activeBranchSelect");
 if (tailorSel) {
-  tailorSel.onchange = () => {
+  tailorSel.onchange = async () => {
     DB.settings.measuredByDefault = tailorSel.value;
-    persist();
+    if (!await persist()) return;
     toast("Active Tailor / Cutter set to " + tailorSel.value);
   };
 }
 if (branchSel) {
   branchSel.value = DB.settings.activeBranch || "Mumbai · Andheri W";
-  branchSel.onchange = () => {
+  branchSel.onchange = async () => {
     DB.settings.activeBranch = branchSel.value;
-    persist();
+    if (!await persist()) return;
     toast("Atelier branch switched to " + branchSel.value);
   };
 }
@@ -3002,6 +3013,7 @@ function render() {
     m.prepend(banner);
   }
   bindCommon();
+  if (SHARED_MODE) globalThis.ModistoShared.renderControls();
 }
 
 function bindCommon() {
@@ -3016,12 +3028,12 @@ function bindCommon() {
     const fn = ACTIONS[el.dataset.act];
     if (fn) fn(el.dataset.id);
   });
-  $$("[data-stage]").forEach(sel => sel.onchange = e => {
+  $$("[data-stage]").forEach(sel => sel.onchange = async e => {
     e.stopPropagation();
     const o = DB.orders[sel.dataset.stage];
     if (o) {
       syncOrderStageToWorkflow(o, sel.value);
-      persist();
+      if (!await persist()) return;
       pushToSheets("Orders", flatOrder(o));
       const doneCnt = (o.workflow || []).filter(s => s.done).length;
       toast(`${o.orderNo} moved to ${o.status} (${doneCnt}/9 sequence steps marked done)`);
@@ -3109,9 +3121,9 @@ function bindCommon() {
       const file = logoInput.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         DB.settings.logoDataUrl = reader.result;
-        persist();
+        if (!await persist()) return;
         toast("Modisto custom logo uploaded & applied to Print Sheets!");
         render();
       };
@@ -4622,9 +4634,9 @@ function mountMeasure() {
   };
 
   // Toggle 1-Page vs 2-Page Print Format WITHOUT jumping back to Tab 1 (Point 7 Fix!)
-  const applyPrintModeInPlace = (newMode) => {
+  const applyPrintModeInPlace = async (newMode) => {
     DB.settings.printPagesMode = newMode;
-    persist();
+    if (!await persist()) return;
     const label = newMode === "2page" ? "2 Pages (Table + Visual Guide)" : "1 Page (Condensed Table Only)";
     $$("[data-set-pmode]").forEach(b => b.classList.toggle("primary", b.dataset.setPmode === newMode));
     buildSummary();
@@ -4987,7 +4999,7 @@ async function saveMeasure() {
       throw new Error("This docket changed in another tab. Copy your draft notes, then reload the saved docket before retrying.");
     }
     next = { ...latest, measurements: { ...latest.measurements, [snapshot.id]: snapshot } };
-    writeDatabase(next);
+    await writeDatabase(next);
   } catch (e) {
     $("#status").textContent = "Save failed — draft retained. " + e.message;
     toast("Measurement save failed. " + e.message);
@@ -4996,8 +5008,8 @@ async function saveMeasure() {
   DB = next;
   MREC.savedAt = snapshot.savedAt;
   measurementBaselines.set(MREC, JSON.stringify(MREC));
-  $("#status").textContent = "Saved locally · " + MREC.orderNo + " · " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  toast("Measurements saved locally");
+  $("#status").textContent = (SHARED_MODE ? "Saved to local staging server · " : "Saved locally · ") + MREC.orderNo + " · " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  toast(SHARED_MODE ? "Measurements saved to staging server" : "Measurements saved locally");
   // An opaque no-cors response cannot acknowledge a Sheets write.
   if (DB.settings.appsScriptUrl) {
     const sent = await pushToSheets("Measurements", flatMeasure(snapshot));
@@ -5455,17 +5467,17 @@ function mountGarmentJobs() {
     GARMENT_WORKSPACE.jobs = GARMENT_WORKSPACE.jobs.filter(job => job.id !== button.dataset.jobRemove);
     render();
   });
-  $("#gjSave").onclick = () => {
+  $("#gjSave").onclick = async () => {
     try {
-      const order = commitGarmentWorkspace(GARMENT_WORKSPACE);
+      const order = await commitGarmentWorkspace(GARMENT_WORKSPACE);
       GARMENT_WORKSPACE.original = JSON.stringify(order);
       GARMENT_WORKSPACE.savedJobs = JSON.stringify(order.garmentJobs);
       GARMENT_WORKSPACE.jobs = copyGarmentData(order.garmentJobs);
       GARMENT_WORKSPACE.versions = copyGarmentData(DB.measurementVersions);
       updateNavCounts();
       render();
-      $("#gjStatus").textContent = "Garment jobs saved locally";
-      toast("Garment jobs saved locally");
+      $("#gjStatus").textContent = SHARED_MODE ? "Garment jobs saved to staging server" : "Garment jobs saved locally";
+      toast(SHARED_MODE ? "Garment jobs saved to staging server" : "Garment jobs saved locally");
     } catch (error) { $("#gjStatus").textContent = error.message; }
   };
   if ($("#gjLegacy")) $("#gjLegacy").onclick = () => {
@@ -6175,7 +6187,7 @@ function vSettings() {
         </div>
         <div class="field full">
           <label>Google Apps Script Web App URL (Optional Cloud Sync)</label>
-          <input type="text" id="setUrl" value="${esc(s.appsScriptUrl || "")}" placeholder="https://script.google.com/macros/s/…/exec">
+          <input type="text" id="setUrl" value="${esc(s.appsScriptUrl || "")}" placeholder="${SHARED_MODE ? 'Disabled in local staging' : 'https://script.google.com/macros/s/…/exec'}" ${SHARED_MODE ? 'disabled' : ''}>
         </div>
       </div>
       <div style="margin-top:14px;">
@@ -6211,9 +6223,9 @@ function vSettings() {
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn" data-act="exportDb">⬇ Export Database (JSON)</button>
           <button class="btn" data-act="importDb">⬆ Import Database</button>
-          <button class="btn" data-act="exportRecovery">Download pre-change backup</button>
+          ${SHARED_MODE ? '' : '<button class="btn" data-act="exportRecovery">Download pre-change backup</button>'}
           <button class="btn soft" data-act="resetSeed">Open separate demo workspace</button>
-          <button class="btn danger" data-act="wipeDb">🗑 Erase All Data</button>
+          ${SHARED_MODE ? '' : '<button class="btn danger" data-act="wipeDb">🗑 Erase All Data</button>'}
         </div>
         <input type="file" id="importFile" accept="application/json" style="display:none;">
       </div>
@@ -6225,10 +6237,12 @@ function vSettings() {
    MODALS (Client, Employee, Order + Costing + Timeline, Swatch, Pickers)
    ============================================================================ */
 function openModal(html) {
+  SHARED_FORM_DIRTY = false;
   $("#modal").innerHTML = html;
   $("#overlay").classList.add("on");
 }
 function closeModal() {
+  SHARED_FORM_DIRTY = false;
   $("#overlay").classList.remove("on");
 }
 $("#overlay").addEventListener("click", e => {
@@ -6305,7 +6319,7 @@ function clientModal(c, startMeasureOnSave = false) {
   $("#cmCancel").onclick = closeModal;
   $("#cmName").focus();
 
-  const saveClientRecord = (openMeasureAfter) => {
+  const saveClientRecord = async (openMeasureAfter) => {
     const name = $("#cmName").value.trim();
     if (!name) { $("#cmName").focus(); return; }
     const rec = {
@@ -6326,7 +6340,7 @@ function clientModal(c, startMeasureOnSave = false) {
       createdAt: c.createdAt || new Date().toISOString()
     };
     DB.clients[rec.id] = rec;
-    persist();
+    if (!await persist()) return;
     closeModal();
     pushToSheets("Clients", flatClient(rec));
 
@@ -6392,7 +6406,7 @@ function employeeModal(emp) {
   `);
   $("#emCancel").onclick = closeModal;
   $("#emName").focus();
-  $("#emSave").onclick = () => {
+  $("#emSave").onclick = async () => {
     const name = $("#emName").value.trim();
     if (!name) { $("#emName").focus(); return; }
     const rec = {
@@ -6405,7 +6419,7 @@ function employeeModal(emp) {
       dailyCapHrs: parseFloat($("#emCap").value) || 8
     };
     DB.employees[rec.id] = rec;
-    persist();
+    if (!await persist()) return;
     closeModal();
     toast(emp.id ? "Employee updated" : "Added " + rec.name + " to Atelier team");
     render();
@@ -6687,14 +6701,14 @@ function orderModal(o, clientId, sourceDocket = null) {
   $("#omCancel").onclick = closeModal;
   const del = $("#omDelete");
   if (del) {
-    del.onclick = () => {
+    del.onclick = async () => {
       try {
         const latest = latestStoredDatabase();
         if (JSON.stringify(latest.orders[o.id]) !== JSON.stringify(o) || latest.orders[o.id]?.garmentJobs?.length) throw new Error("This order changed. Reopen it; saved garment histories cannot be deleted.");
         const orders = {...latest.orders};
         delete orders[o.id];
         const next = {...latest,orders};
-        writeDatabase(next);
+        await writeDatabase(next);
         DB = next;
       } catch (error) { toast("Could not delete order. " + error.message); return; }
       closeModal();
@@ -6703,7 +6717,7 @@ function orderModal(o, clientId, sourceDocket = null) {
     };
   }
 
-  $("#omSave").onclick = () => {
+  $("#omSave").onclick = async () => {
     if (!DB.clients[$("#omClient").value]) { toast("Choose a client before creating an order."); return; }
     const ordDate = $("#omDate").value;
     const statusVal = $("#omStatus").value;
@@ -6762,7 +6776,7 @@ function orderModal(o, clientId, sourceDocket = null) {
           orders: { ...latest.orders, [rec.id]: rec },
           measurements: { ...latest.measurements, [saved.id]: { ...saved, orderNo: rec.orderNo } }
         };
-        writeDatabase(next);
+        await writeDatabase(next);
         DB = next;
       } catch (error) {
         toast("Could not create order. " + error.message);
@@ -6800,7 +6814,7 @@ function orderModal(o, clientId, sourceDocket = null) {
           ...linkedM, swatchCode: rec.swatchCode || linkedM.swatchCode, measuredBy: rec.assignedTo || linkedM.measuredBy
         } };
       }
-      writeDatabase(next);
+      await writeDatabase(next);
       DB = next;
     } catch (error) {
       if ($("#omReviewError")) $("#omReviewError").textContent = error.message;
@@ -6833,15 +6847,15 @@ function sequenceModal(orderId) {
   if (!o.workflow || !Array.isArray(o.workflow)) {
     syncOrderStageToWorkflow(o, o.status);
   }
-  const saveSequenceChanges = () => {
+  const saveSequenceChanges = async () => {
     try {
       const latest = latestStoredDatabase();
       if (JSON.stringify(latest.orders[o.id]) !== original) throw new Error("This order changed in another tab. Reopen the tracker before saving.");
       const saved = copyGarmentData(o);
       const next = { ...latest, orders: { ...latest.orders, [o.id]: saved } };
-      writeDatabase(next);
+      await writeDatabase(next);
       DB = next;
-      original = JSON.stringify(saved);
+      original = JSON.stringify(next.orders[o.id]);
       return true;
     } catch (error) { toast("Could not save sequence. " + error.message); return false; }
   };
@@ -6989,16 +7003,16 @@ function sequenceModal(orderId) {
     };
 
     // Quick Stage Dropdown inside Sequence Modal
-    $("#seqStageQuickSelect").onchange = e => {
+    $("#seqStageQuickSelect").onchange = async e => {
       syncFieldEditsFromDOM();
       syncOrderStageToWorkflow(o, e.target.value);
-      saveSequenceChanges();
+      await saveSequenceChanges();
       renderModalContent();
     };
 
     // Only the explicitly checked task changes completion state.
     $$(".seq-chk").forEach(chk => {
-      chk.onchange = () => {
+      chk.onchange = async () => {
         syncFieldEditsFromDOM();
         const clickedIdx = parseInt(chk.dataset.idx, 10);
         const isChecking = chk.checked;
@@ -7013,7 +7027,7 @@ function sequenceModal(orderId) {
         o.status = firstPending ? firstPending.stage : "Delivered";
         const sumDays = o.workflow.reduce((acc, s) => acc + (s.done ? (parseFloat(s.daysTaken) || 0) : 0), 0);
         o.actualDays = sumDays;
-        saveSequenceChanges();
+        await saveSequenceChanges();
         renderModalContent();
       };
     });
@@ -7026,9 +7040,9 @@ function sequenceModal(orderId) {
       closeModal();
       render();
     };
-    $("#seqSave").onclick = () => {
+    $("#seqSave").onclick = async () => {
       syncFieldEditsFromDOM();
-      if (!saveSequenceChanges()) return;
+      if (!await saveSequenceChanges()) return;
       closeModal();
       toast(`Synced sequence & stage for ${o.orderNo} → ${o.status}`);
       render();
@@ -7120,7 +7134,7 @@ function enquiryWizardModal() {
     clientModal(null, true);
   };
   $("#eqCancel").onclick = closeModal;
-  $("#eqProceed").onclick = () => {
+  $("#eqProceed").onclick = async () => {
     if (chosenSet.size === 0) {
       toast("Select at least one garment to continue.");
       return;
@@ -7170,7 +7184,7 @@ function enquiryWizardModal() {
       workflow: buildDefaultWorkflow(todayStr, "New", tailor, "")
 
     };
-    persist();
+    if (!await persist()) return;
     closeModal();
     ACTIVE_MEASURE_TAB = selectedList[0].tab || "lower";
     go("measure");
@@ -7262,7 +7276,7 @@ function swatchModal(s) {
     </div>
   `);
   $("#smCancel").onclick = closeModal;
-  $("#smSave").onclick = () => {
+  $("#smSave").onclick = async () => {
     const code = $("#smCode").value.trim();
     if (!code) { $("#smCode").focus(); return; }
     const stockM = parseFloat($("#smStock").value) || 0;
@@ -7287,7 +7301,7 @@ function swatchModal(s) {
       notes: $("#smNotes").value.trim()
     };
     DB.swatches[rec.id] = rec;
-    persist();
+    if (!await persist()) return;
     closeModal();
     toast("Swatch " + rec.code + ", Min Alert & Vendor details saved");
     render();
@@ -7392,9 +7406,9 @@ const ACTIONS = {
       "Remove Employee",
       `Remove "${emp.name}" (${emp.role}) from the active team roster? Past measurement dockets and orders will keep their recorded name.`,
       "Remove Employee",
-      () => {
+      async () => {
         delete DB.employees[id];
-        persist();
+        if (!await persist()) return;
         toast(emp.name + " removed from roster");
         render();
       }
@@ -7495,22 +7509,23 @@ const ACTIONS = {
       }
     );
   },
-  clearLogo() {
+  async clearLogo() {
     DB.settings.logoDataUrl = "";
-    persist();
+    if (!await persist()) return;
     toast("Reverted to default Modisto crest logo");
     render();
   },
-  saveSettings() {
+  async saveSettings() {
     DB.settings.appsScriptUrl = $("#setUrl").value.trim();
     DB.settings.measuredByDefault = $("#setBy").value.trim();
     DB.settings.atelierContactLine1 = $("#setContact1").value.trim();
     DB.settings.atelierContactLine2 = $("#setContact2").value.trim();
     DB.settings.printPagesMode = $("#setPrintMode").value;
-    persist();
+    if (!await persist()) return;
     toast("Branding & Print Header settings saved");
   },
   exportRecovery() {
+    if (SHARED_MODE) { toast("Staging does not read this browser's local recovery records. Export the shared records instead."); return; }
     const keys = DEMO_MODE ? [DB_KEY] : [DB_KEY, "modisto_bespoke_v6", "modisto_bespoke_v5", "modisto_bespoke_v4", "modisto_bespoke_v3"];
     const raw = localStorage.getItem(RECOVERY_KEY) || keys.map(key => localStorage.getItem(key)).find(value => value !== null);
     if (!raw) { toast("No pre-change backup is available yet. Export Database saves the current records."); return; }
@@ -7529,6 +7544,7 @@ const ACTIONS = {
     URL.revokeObjectURL(a.href);
   },
   importDb() {
+    if (SHARED_MODE) { globalThis.ModistoShared.openImport(); return; }
     const f = $("#importFile");
     f.onchange = () => {
       const file = f.files[0];
@@ -7564,6 +7580,7 @@ const ACTIONS = {
   },
 
   wipeDb() {
+    if (SHARED_MODE) { toast("Shared records cannot be erased through the browser-local wipe action."); return; }
     confirmDialog(
       "Erase All Data",
       "Erase ALL clients, measurements, swatches, and orders from this browser? Export a backup first if needed.",
@@ -7581,7 +7598,15 @@ const ACTIONS = {
 
 /* ---------------- SAFE BOOT SEQUENCE ---------------- */
 try {
-  go("dashboard");
+  if (SHARED_MODE) {
+    globalThis.ModistoShared.boot({
+      normalize: normalizeDatabase, openModal, closeModal,
+      activate(data) { DB = data; MREC = null; GARMENT_WORKSPACE = null; GARMENT_PRINT_SHEET = null; SHARED_FORM_DIRTY = false; renderSidebarBrandAndEmployees(); go("dashboard"); },
+      clear() { DB = emptyDatabase(); MREC = null; GARMENT_WORKSPACE = null; GARMENT_PRINT_SHEET = null; SHARED_FORM_DIRTY = false; $("#main").replaceChildren(); renderSidebarBrandAndEmployees(); document.body.classList.remove("garment-print-mode"); window.onbeforeprint = null; },
+      saved() { SHARED_FORM_DIRTY = false; },
+      dirty() { return Boolean(( $("#overlay").classList.contains("on") && SHARED_FORM_DIRTY ) || garmentWorkspaceDirty() || (VIEW.name === "measure" && MREC && measurementBaselines.get(MREC) !== JSON.stringify(MREC))); }
+    }).catch(error => { document.body.classList.add("shared-locked"); document.getElementById("sharedRoot").textContent = "Local staging could not start: " + error.message; });
+  } else go("dashboard");
 } catch (err) {
   console.error("Boot recovery triggered:", err);
   $("#main").textContent = "The interface could not load. Your stored records have been retained. Export or recover the original JSON before retrying.";
