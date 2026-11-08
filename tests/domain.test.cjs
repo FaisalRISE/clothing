@@ -251,3 +251,95 @@ test('garment saves reject stale orders, foreign-client measurements and failed 
   assert.deepEqual(copy(a.run('DB')),before);
   assert.equal(JSON.parse(a.storage.get('modisto_bespoke_v7')).orders.o.advancePaid,120000);
 });
+
+function amendmentApp() {
+  const a=app({modisto_bespoke_v6:JSON.stringify(legacy)});
+  a.run('globalThis.versions={}; const id=captureGarmentMeasurement("m",DB,versions); globalThis.workspace={orderId:"o",original:JSON.stringify(DB.orders.o),jobs:makeGarmentJobs("suit2",1,{measurementVersionId:id,maker:"Recorded maker",swatchCode:"JOB-FABRIC"}),versions}; commitGarmentWorkspace(workspace); workspace.original=JSON.stringify(DB.orders.o);');
+  return a;
+}
+
+test('cancellation and reinstatement retain measurements, completed tasks, assignments and commercial values', () => {
+  const a=amendmentApp();
+  a.run('workspace.jobs[0]=applyGarmentJobEdit(workspace.jobs[0],{status:"Ready",workflow:workspace.jobs[0].workflow.map((step,i)=>i===5?{...step,done:true,doneDate:"2026-11-01",notes:"Keep fitting findings"}:step)}); commitGarmentWorkspace(workspace); workspace.original=JSON.stringify(DB.orders.o);');
+  const before=copy(a.run('DB.orders.o'));
+  assert.throws(()=>a.run('reviseGarmentCancellation(workspace.jobs[0]," ")'), /Enter a reason/);
+  a.run('workspace.jobs[0]=reviseGarmentCancellation(workspace.jobs[0],"Client cancelled jacket only"); commitGarmentWorkspace(workspace);');
+  const cancelled=copy(a.run('DB.orders.o'));
+  for(const key of ['amount','advancePaid','fabricMeters','workflow','garments','assignedTo']) assert.deepEqual(cancelled[key],before[key]);
+  for(const key of ['workflow','maker','swatchCode','measurementVersionId','status']) assert.deepEqual(cancelled.garmentJobs[0][key],before.garmentJobs[0][key]);
+  assert.deepEqual(cancelled.garmentJobs[1],before.garmentJobs[1]);
+  assert.equal(cancelled.commercialReviewRequired,true);
+  assert.equal(cancelled.reservedFabricMeters,40);
+  assert.equal(a.run('garmentProgressText(DB.orders.o.garmentJobs)'), '0 of 1 garments ready · 1 active · 1 cancelled');
+  assert.equal(a.run('garmentOrderDescription(DB.orders.o)'), '1× Trousers');
+  assert.throws(()=>a.run('applyGarmentJobEdit(workspace.jobs[0],{status:"Cutting"})'), /Reinstate/);
+  assert.throws(()=>a.run('buildGarmentWorkshopSheet(DB,"o",DB.orders.o.garmentJobs[0].id)'), /cancelled/);
+  a.run('workspace.original=JSON.stringify(DB.orders.o); workspace.jobs[0]=reviseGarmentCancellation(workspace.jobs[0],"Client reinstated jacket",true); commitGarmentWorkspace(workspace);');
+  assert.equal(a.run('DB.orders.o.garmentJobs[0].status'),'Ready');
+  assert.equal(a.run('DB.orders.o.garmentJobs[0].cancellation'),null);
+  assert.deepEqual(copy(a.run('DB.orders.o.garmentRevisions.map(event=>event.kind)')),['Cancelled','Reinstated']);
+});
+
+test('cancelled garments leave production while reservations survive terminal stage changes and saved histories cannot be deleted', () => {
+  const a=amendmentApp();
+  a.run('workspace.jobs[0]=applyGarmentJobEdit(workspace.jobs[0],{status:"Delivered"}); commitGarmentWorkspace(workspace); workspace.original=JSON.stringify(DB.orders.o);');
+  assert.throws(()=>a.run('reviseGarmentCancellation(workspace.jobs[0],"Cancellation")'), /return\/refund/);
+  a.run('workspace.jobs[1]=reviseGarmentCancellation(workspace.jobs[1],"Cancel undelivered trouser"); commitGarmentWorkspace(workspace);');
+  assert.equal(a.run('DB.orders.o.status'),'Delivered');
+  assert.equal(a.run('orderFabricReservation(DB.orders.o)'),40);
+  const b=amendmentApp();
+  b.run('workspace.jobs=workspace.jobs.map(job=>reviseGarmentCancellation(job,"Client cancelled order")); commitGarmentWorkspace(workspace);');
+  assert.equal(b.run('DB.orders.o.status'),'Cancelled');
+  assert.equal(b.run('garmentProgressText(DB.orders.o.garmentJobs)'),'0 active garments · 2 cancelled');
+  b.run('workspace.original=JSON.stringify(DB.orders.o); workspace.jobs.pop();');
+  assert.throws(()=>b.run('commitGarmentWorkspace(workspace)'), /Saved garments cannot be removed/);
+  b.run('workspace.jobs=JSON.parse(JSON.stringify(DB.orders.o.garmentJobs)); workspace.jobs[0].history=[];');
+  assert.throws(()=>b.run('commitGarmentWorkspace(workspace)'), /activity cannot be removed/);
+});
+
+test('extra garments require an addition reason and preserve every previously saved garment', () => {
+  const a=amendmentApp();
+  const before=copy(a.run('DB.orders.o'));
+  a.run('workspace.jobs.push(...makeGarmentJobs("shirt",1,{},workspace.jobs));');
+  assert.throws(()=>a.run('commitGarmentWorkspace(workspace)'), /reason for adding/);
+  a.run('workspace.jobs[2].additionReason="Client added a shirt"; commitGarmentWorkspace(workspace);');
+  const after=copy(a.run('DB.orders.o'));
+  assert.deepEqual(after.garmentJobs.slice(0,2),before.garmentJobs);
+  assert.equal(after.garmentRevisions[0].kind,'Added');
+  assert.equal(after.commercialReviewRequired,true);
+  for(const key of ['amount','advancePaid','fabricMeters','workflow','garments']) assert.deepEqual(after[key],before[key]);
+});
+
+test('commercial reviews require reasons and explicitly record reservation and paid-total changes without rewriting job history', () => {
+  const a=amendmentApp();
+  a.run('globalThis.beforeReview={...DB.orders.o,commercialReviewRequired:true,reservedFabricMeters:40}; globalThis.afterReview={...beforeReview,amount:100000,advancePaid:94000,reservedFabricMeters:0};');
+  assert.throws(()=>a.run('reviewOrderCommercials(beforeReview,afterReview,"",true)'), /Enter a reason/);
+  a.run('globalThis.reviewed=reviewOrderCommercials(beforeReview,afterReview,"Agreed revised totals and released reservation",true);');
+  const reviewed=copy(a.run('reviewed'));
+  assert.equal(reviewed.commercialReviewRequired,false);
+  assert.deepEqual(reviewed.commercialAdjustments[0].changes.advancePaid,{before:112000,after:94000});
+  assert.deepEqual(reviewed.commercialAdjustments[0].changes.reservedFabricMeters,{before:40,after:0});
+  assert.equal(reviewed.fabricMeters,40);
+  assert.deepEqual(reviewed.garmentJobs,copy(a.run('beforeReview.garmentJobs')));
+  assert.equal(a.run('beforeReview.advancePaid'),112000);
+  assert.equal(a.run('reviewOrderCommercials(beforeReview,beforeReview,"Confirmed no change",true).commercialAdjustments[0].confirmed'),true);
+  assert.equal(a.run('reviewOrderCommercials(beforeReview,beforeReview,"",false).commercialReviewRequired'),true);
+  assert.throws(()=>a.run('reviewOrderCommercials(beforeReview,{...beforeReview,advancePaid:-1},"Correction",true)'), /positive number/);
+});
+
+test('failed cancellation writes retain drafts and retry safely; stale amendments retain newer payment values', () => {
+  const a=amendmentApp();
+  const before=copy(a.run('DB'));
+  a.run('workspace.jobs[0]=reviseGarmentCancellation(workspace.jobs[0],"Client cancelled jacket"); localStorage.setItem=()=>{throw new Error("Quota exceeded")};');
+  assert.throws(()=>a.run('commitGarmentWorkspace(workspace)'), /Quota exceeded/);
+  assert.deepEqual(copy(a.run('DB')),before);
+  assert.ok(a.run('workspace.jobs[0].cancellation'));
+  a.context.localStorage.setItem=(k,v)=>a.storage.set(k,v);
+  a.run('commitGarmentWorkspace(workspace); workspace.original=JSON.stringify(DB.orders.o); workspace.jobs[1]=reviseGarmentCancellation(workspace.jobs[1],"Cancel trousers");');
+  const newer=copy(a.run('DB'));
+  newer.orders.o.advancePaid=120000;
+  a.storage.set('modisto_bespoke_v7',JSON.stringify(newer));
+  assert.throws(()=>a.run('commitGarmentWorkspace(workspace)'), /changed in another tab/);
+  assert.equal(JSON.parse(a.storage.get('modisto_bespoke_v7')).orders.o.advancePaid,120000);
+  assert.equal(JSON.parse(a.storage.get('modisto_bespoke_v7')).orders.o.garmentJobs[1].cancellation,undefined);
+});

@@ -1265,6 +1265,8 @@ tr.rowlink:hover { background: #faf7f0; }
 .garment-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 25; background: var(--bg); padding: 10px 0; }
 .garment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 12px; }
 .garment-card p { margin: 8px 0; overflow-wrap: anywhere; }
+.garment-card.is-cancelled { background: #f1f2f3; border-left: 4px solid #68707c; }
+.garment-card .btn:disabled, .garment-toolbar .btn:disabled, #btnAutoEstCloth:disabled { opacity: .45; cursor: not-allowed; }
 .garment-heading { display: flex; gap: 8px; justify-content: space-between; align-items: start; }
 .garment-tasks { display: grid; gap: 10px; margin-top: 14px; }
 .garment-task { border: 1px solid var(--line); padding: 10px; border-radius: 7px; }
@@ -1566,6 +1568,7 @@ const ORDER_STAGES = [
   "Ready",
   "Delivered"
 ];
+const ORDER_FILTER_STAGES = [...ORDER_STAGES, "Cancelled"];
 
 const WORKFLOW_TEMPLATE = [
   { key: "booked", label: "1. Order Booked & Docket Created", stage: "New", defaultDays: 1 },
@@ -1665,6 +1668,7 @@ function buildGarmentWorkshopSheet(database, orderId, jobId) {
   const order = database.orders[orderId];
   const job = order?.garmentJobs?.find(item => item.id === jobId);
   if (!job || !GARMENT_JOB_TYPES[job.type]) throw new Error("This saved garment job is no longer available.");
+  if (job.cancellation) throw new Error("This garment is cancelled. Reinstate it and save before issuing a workshop sheet.");
   const client = database.clients[order.clientId];
   const version = database.measurementVersions?.[job.measurementVersionId];
   const snapshot = version?.snapshot;
@@ -1739,6 +1743,7 @@ function makeGarmentJobs(type, quantity, defaults, existingJobs = []) {
         status: "New", notes: "", createdAt: new Date().toISOString(),
         workflow: buildDefaultWorkflow("", "New", "", ""), history: []
       });
+      if (defaults.additionReason) jobs[jobs.length - 1].additionReason = defaults.additionReason.trim();
     }
   }
   return jobs;
@@ -1764,38 +1769,98 @@ function captureGarmentMeasurement(docketId, database, versions) {
 
 function garmentOrderStage(jobs) {
   if (!jobs.length) return "New";
-  const stages = jobs.map(job => ORDER_STAGES.indexOf(job.status));
+  const active = jobs.filter(job => !job.cancellation);
+  if (!active.length) return "Cancelled";
+  const stages = active.map(job => ORDER_STAGES.indexOf(job.status));
   return ORDER_STAGES[Math.max(0, Math.min(...stages))];
 }
 
 function garmentProgressText(jobs) {
-  const ready = jobs.filter(job => job.status === "Ready" || job.status === "Delivered").length;
-  const delivered = jobs.filter(job => job.status === "Delivered").length;
-  return delivered === jobs.length && jobs.length
-    ? delivered + " of " + jobs.length + " garments delivered"
-    : ready + " of " + jobs.length + " garments ready";
+  const active = jobs.filter(job => !job.cancellation);
+  const cancelled = jobs.length - active.length;
+  if (!active.length && cancelled) return "0 active garments · " + cancelled + " cancelled";
+  const ready = active.filter(job => job.status === "Ready" || job.status === "Delivered").length;
+  const delivered = active.filter(job => job.status === "Delivered").length;
+  const text = delivered === active.length && active.length
+    ? delivered + " of " + active.length + " garments delivered"
+    : ready + " of " + active.length + " garments ready";
+  return text + (cancelled ? " · " + active.length + " active · " + cancelled + " cancelled" : "");
 }
 
 function garmentOrderDescription(order) {
   if (!order.garmentJobs?.length) return order.garments || "";
   const counts = new Map();
-  for (const job of order.garmentJobs) counts.set(job.type, (counts.get(job.type) || 0) + 1);
+  for (const job of order.garmentJobs.filter(item => !item.cancellation)) counts.set(job.type, (counts.get(job.type) || 0) + 1);
+  if (!counts.size) return "All garments cancelled";
   return [...counts].map(([type, quantity]) => quantity + "× " + (GARMENT_JOB_TYPES[type]?.label || type)).join(" + ");
 }
 
 function applyGarmentJobEdit(job, fields) {
+  if (job.cancellation) throw new Error("Reinstate the garment before changing its measurements or progress.");
   const updated = { ...copyGarmentData(job), ...fields };
   if (!updated.label.trim()) throw new Error("Enter a name for this garment.");
   if (!ORDER_STAGES.includes(updated.status)) throw new Error("Choose a valid stage.");
+  return recordGarmentJobChange(job, updated);
+}
+
+function recordGarmentJobChange(job, updated, details = {}) {
   const before = { ...job };
   const after = { ...updated };
   delete before.history;
   delete after.history;
   if (JSON.stringify(before) !== JSON.stringify(after)) {
     updated.updatedAt = new Date().toISOString();
-    updated.history = [...(job.history || []), { at: updated.updatedAt, before, after }];
+    updated.history = [...(job.history || []), { at: updated.updatedAt, ...details, before, after }];
   }
   return updated;
+}
+
+function reviseGarmentCancellation(job, reason, reinstate = false) {
+  reason = String(reason || "").trim();
+  if (!reason) throw new Error("Enter a reason for this garment change.");
+  if (reinstate && !job.cancellation) throw new Error("This garment is already active.");
+  if (!reinstate && job.cancellation) throw new Error("This garment is already cancelled.");
+  if (!reinstate && job.status === "Delivered") throw new Error("Delivered garments need a return/refund review; they cannot be cancelled here.");
+  const updated = copyGarmentData(job);
+  updated.cancellation = reinstate ? null : {at:new Date().toISOString(),reason,stage:job.status};
+  return recordGarmentJobChange(job, updated, {kind:reinstate ? "Reinstated" : "Cancelled",reason});
+}
+
+const ORDER_COMMERCIAL_FIELDS = {
+  amount:"Order quote", advancePaid:"Recorded advance paid", fabricMeters:"Fabric metres used for costing",
+  reservedFabricMeters:"Fabric reservation metres",
+  fabricRate:"Fabric rate", trimsCost:"Trims cost", cutterCost:"Cutter cost", karigarCost:"Maker cost",
+  trialShippingCost:"Trial / shipping cost", swatchCode:"Order fabric swatch", fabric:"Fabric description", liningCode:"Lining code"
+};
+
+function orderFabricReservation(order) {
+  if (order.reservedFabricMeters != null) return Number(order.reservedFabricMeters) || 0;
+  return order.status === "Delivered" ? 0 : Number(order.fabricMeters) || 0;
+}
+
+function reviewOrderCommercials(before, after, reason, confirmed = false) {
+  if (!before.garmentJobs?.length) return after;
+  const changes = {};
+  for (const field of Object.keys(ORDER_COMMERCIAL_FIELDS)) {
+    const numeric = !["swatchCode","fabric","liningCode"].includes(field);
+    const normalize = value => value == null || value === "" ? null : numeric ? Number(value) : String(value);
+    const previous = field === "reservedFabricMeters" ? orderFabricReservation(before) : normalize(before[field]);
+    const next = field === "reservedFabricMeters" ? orderFabricReservation(after) : normalize(after[field]);
+    if (field === "reservedFabricMeters" && after[field] != null && (!Number.isFinite(Number(after[field])) || Number(after[field]) < 0)) throw new Error("Fabric reservation metres must be zero or a positive number.");
+    if (previous === next) continue;
+    if (numeric && next !== null && (!Number.isFinite(next) || next < 0)) throw new Error(ORDER_COMMERCIAL_FIELDS[field] + " must be zero or a positive number.");
+    changes[field] = {before:field === "reservedFabricMeters" ? previous : before[field] ?? null,after:field === "reservedFabricMeters" ? next : after[field] ?? null};
+  }
+  if (!Object.keys(changes).length && !confirmed) return after;
+  reason = String(reason || "").trim();
+  if (!reason) throw new Error("Enter a reason for the fabric/payment review or changed order totals.");
+  return {
+    ...after, commercialReviewRequired:confirmed ? false : Boolean(before.commercialReviewRequired),
+    commercialAdjustments:[...(before.commercialAdjustments || []), {
+      id:uid("review"),at:new Date().toISOString(),reason,changes,confirmed,
+      garmentRevisionCount:(before.garmentRevisions || []).length
+    }]
+  };
 }
 
 function commitGarmentWorkspace(workspace) {
@@ -1809,11 +1874,36 @@ function commitGarmentWorkspace(workspace) {
   const versions = { ...(latest.measurementVersions || {}) };
   const ids = new Set();
   const versionIds = new Set();
+  const revisions = [];
+  const previousJobs = order.garmentJobs || [];
+  for (const previous of previousJobs) {
+    const job = workspace.jobs.find(item => item.id === previous.id);
+    if (!job) throw new Error("Saved garments cannot be removed. Cancel the garment with a reason instead.");
+    if (job.type !== previous.type || job.bundleId !== previous.bundleId) throw new Error("A saved garment's identity cannot be replaced.");
+    if (JSON.stringify((job.history || []).slice(0,(previous.history || []).length)) !== JSON.stringify(previous.history || [])) {
+      throw new Error("Existing garment activity cannot be removed or changed.");
+    }
+    if ((previous.workflow || []).some(step => !job.workflow.some(item => item.key === step.key))) throw new Error("Existing workflow tasks cannot be removed.");
+    const events = (job.history || []).slice((previous.history || []).length);
+    for (const event of events.filter(item => ["Cancelled","Reinstated"].includes(item.kind))) {
+      if (!String(event.reason || "").trim()) throw new Error("Enter a reason for the garment change.");
+      revisions.push({id:uid("revision"),at:new Date().toISOString(),kind:event.kind,jobId:job.id,label:job.label,reason:event.reason});
+    }
+    if (JSON.stringify(job.cancellation || null) !== JSON.stringify(previous.cancellation || null) && !events.some(event => ["Cancelled","Reinstated"].includes(event.kind))) {
+      throw new Error("Use the cancellation or reinstatement action to change a garment's cancellation state.");
+    }
+    if (previous.cancellation && !events.some(event => event.kind === "Reinstated") && JSON.stringify(job) !== JSON.stringify(previous)) throw new Error("Reinstate the garment before editing it.");
+  }
   for (const job of workspace.jobs) {
     if (!job.id || ids.has(job.id) || !GARMENT_JOB_TYPES[job.type] || !ORDER_STAGES.includes(job.status)) {
       throw new Error("The garment list contains an invalid or duplicate job.");
     }
     ids.add(job.id);
+    if (job.cancellation && (!String(job.cancellation.reason || "").trim() || job.status === "Delivered")) throw new Error("Invalid cancellation record.");
+    if (previousJobs.length && !previousJobs.some(item => item.id === job.id)) {
+      if (!String(job.additionReason || "").trim()) throw new Error("Enter a reason for adding garments to this order.");
+      revisions.push({id:uid("revision"),at:new Date().toISOString(),kind:"Added",jobId:job.id,label:job.label,reason:job.additionReason});
+    }
     if (job.measurementVersionId) versionIds.add(job.measurementVersionId);
     for (const event of job.history || []) {
       if (event.before.measurementVersionId) versionIds.add(event.before.measurementVersionId);
@@ -1836,6 +1926,12 @@ function commitGarmentWorkspace(workspace) {
   };
   if (!order.garmentJobs?.length) {
     updated.productionBeforeGarmentJobs = { status: order.status || "New", recordedAt: updated.garmentJobsReviewedAt };
+  }
+  if (revisions.length) {
+    updated.garmentRevisions = [...(order.garmentRevisions || []),...revisions];
+    updated.commercialReviewRequired = true;
+    // Freeze the existing reservation even if cancelling the last unfinished garment closes the order.
+    if (order.reservedFabricMeters == null) updated.reservedFabricMeters = orderFabricReservation(order);
   }
   const next = {
     ...latest, measurementVersions: versions,
@@ -2697,13 +2793,13 @@ function estimateFabricFromMeasurements(mrec, garmentType, qtySets) {
 function getSwatchAllocationStatus(swatchCode, extraMeters = 0) {
   const sw = getSwatchByCode(swatchCode);
   if (!sw) return null;
-  // Sum meters across all open (non-Delivered) orders using this swatch
+  // An explicit reservation survives cancellation/delivery until staff review it.
   const openOrders = Object.values(DB.orders).filter(o =>
-    o.status !== "Delivered" &&
+    (o.status !== "Delivered" || o.reservedFabricMeters != null) && orderFabricReservation(o) > 0 &&
     ((o.swatchCode || "").toUpperCase() === sw.code.toUpperCase() ||
      (o.fabric || "").toUpperCase().includes(sw.code.toUpperCase()))
   );
-  const ordersMeters = openOrders.reduce((sum, o) => sum + (parseFloat(o.fabricMeters) || 0), 0);
+  const ordersMeters = openOrders.reduce((sum, o) => sum + orderFabricReservation(o), 0);
   const requiredMeters = Math.max(ordersMeters, parseFloat(sw.allocatedMeters) || 0) + (parseFloat(extraMeters) || 0);
   const stockMeters = parseFloat(sw.stockMeters) || 0;
   const minStockMeters = parseFloat(sw.minStockMeters) || 0;
@@ -2787,7 +2883,7 @@ function updateNavCounts() {
   const tEl = $("#navCntTeam");
   const sEl = $("#navCntSwatches");
   if (cEl) cEl.textContent = Object.keys(DB.clients).length;
-  if (oEl) oEl.textContent = Object.values(DB.orders).filter(o => o.status !== "Delivered").length;
+  if (oEl) oEl.textContent = Object.values(DB.orders).filter(o => !["Delivered","Cancelled"].includes(o.status)).length;
   if (tEl) tEl.textContent = Object.keys(DB.employees || {}).length;
   if (sEl) sEl.textContent = Object.keys(DB.swatches).length;
 }
@@ -2882,6 +2978,7 @@ if (branchSel) {
 function render() {
   const m = $("#main");
   document.body.classList.toggle("garment-print-mode", VIEW.name === "garmentPrint");
+  if (VIEW.name !== "garmentPrint") window.onbeforeprint = null;
   m.oninput = null;
   m.onchange = null;
   if (VIEW.name === "dashboard") m.innerHTML = vDashboard();
@@ -3032,7 +3129,7 @@ function vDashboard() {
   const or = Object.values(DB.orders);
   const sw = Object.values(DB.swatches);
 
-  const activeOrders = or.filter(o => o.status !== "Delivered");
+  const activeOrders = or.filter(o => !["Delivered","Cancelled"].includes(o.status));
   let totalRevenue = 0, totalProfit = 0;
   or.forEach(o => {
     const ec = calcOrderEconomics(o);
@@ -3084,7 +3181,7 @@ function vDashboard() {
       <button class="crumb" data-go="orders">Open Full Pipeline →</button>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      ${ORDER_STAGES.map(s => `
+      ${ORDER_FILTER_STAGES.map(s => `
         <button type="button" class="stage-pill-btn" data-stage-pill="${esc(s)}">
           <span class="badge ${stageBadgeClass(s)}">${esc(s)}</span>
           <b style="font-size:15px;color:var(--navy);">${stageCounts[s] || 0}</b>
@@ -3131,7 +3228,7 @@ function vDashboard() {
         <thead><tr><th>Order / Client</th><th>Swatch # &amp; Garment</th><th>Trial Date &amp; Tailor</th><th>Stage &amp; Sequence</th></tr></thead>
         <tbody>` + activeO.map(o => {
           const clObj = DB.clients[o.clientId];
-          const wf = o.garmentJobs?.length ? o.garmentJobs.flatMap(job => job.workflow) : o.workflow || [];
+          const wf = o.garmentJobs?.length ? o.garmentJobs.filter(job => !job.cancellation).flatMap(job => job.workflow) : o.workflow || [];
           const doneCount = wf.filter(x => x.done).length;
           return `<tr class="rowlink" data-act="openSequenceModal" data-id="${o.id}">
             <td>
@@ -3410,7 +3507,7 @@ function vClient(id) {
             </td>
             <td>
               <select data-stage="${o.id}" style="border:1px solid var(--line-2);border-radius:6px;padding:4px 6px;font-size:11.5px;font-weight:600;background:#faf7f0;" aria-label="Order Stage" ${o.garmentJobs?.length ? "disabled" : ""}>
-                ${ORDER_STAGES.map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
+                ${(o.status === "Cancelled" ? ORDER_FILTER_STAGES : ORDER_STAGES).map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
               </select>
             </td>
             <td style="white-space:nowrap;font-size:12px;">
@@ -4916,7 +5013,7 @@ function orderRows(q, stageFilter) {
   const list = Object.values(DB.orders)
     .map(o => Object.assign({ _c: DB.clients[o.clientId] }, o))
     .filter(o => {
-      const matchQ = !q || ((o.orderNo || "") + " " + (o._c ? o._c.name : "") + " " + (o.garments || "") + " " + (o.swatchCode || "") + " " + (o.fabric || "") + " " + (o.assignedTo || "") + " " + (o.karigarAssigned || "")).toLowerCase().includes(q);
+      const matchQ = !q || ((o.orderNo || "") + " " + (o._c ? o._c.name : "") + " " + (o.garments || "") + " " + garmentOrderDescription(o) + " " + (o.swatchCode || "") + " " + (o.fabric || "") + " " + (o.assignedTo || "") + " " + (o.karigarAssigned || "")).toLowerCase().includes(q);
       const matchS = !stageFilter || o.status === stageFilter;
       return matchQ && matchS;
     })
@@ -4928,7 +5025,7 @@ function orderRows(q, stageFilter) {
   return list.map(o => {
     const ec = calcOrderEconomics(o);
     const isOverDays = ec.daysVariance > 0;
-    const wf = o.garmentJobs?.length ? o.garmentJobs.flatMap(job => job.workflow) : o.workflow || [];
+    const wf = o.garmentJobs?.length ? o.garmentJobs.filter(job => !job.cancellation).flatMap(job => job.workflow) : o.workflow || [];
     const doneSteps = wf.filter(s => s.done).length;
     const nextPending = wf.find(s => !s.done);
     return `<tr class="rowlink" data-act="openSequenceModal" data-id="${o.id}">
@@ -4943,6 +5040,7 @@ function orderRows(q, stageFilter) {
       <td>
         <div style="font-weight:600;">${esc(garmentOrderDescription(o))}</div>
         <div style="font-size:12px;">${o.garmentJobs?.length ? esc(garmentProgressText(o.garmentJobs)) : "Garment breakdown awaiting review"}</div>
+        ${o.commercialReviewRequired ? '<span class="badge">Fabric / payment review pending</span>' : ""}
         <div style="font-size:11.5px;color:var(--ink-soft);">${esc(o.fabric || "")} (${esc(o.fabricMeters || 0)}m)</div>
       </td>
       <td>${renderSwatchBadge(o.swatchCode)}</td>
@@ -4961,7 +5059,7 @@ function orderRows(q, stageFilter) {
       </td>
       <td onclick="event.stopPropagation()">
         <select data-stage="${o.id}" style="border:1px solid var(--line-2);border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;background:#faf7f0;" aria-label="Stage" ${o.garmentJobs?.length ? "disabled" : ""}>
-          ${ORDER_STAGES.map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
+          ${(o.status === "Cancelled" ? ORDER_FILTER_STAGES : ORDER_STAGES).map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
         </select>
       </td>
       <td style="white-space:nowrap;font-size:12px;">
@@ -5005,21 +5103,24 @@ function vGarmentJobs() {
       <b>${esc(DB.clients[order.clientId]?.name || "Client")}</b>
       <p>${order.garmentJobs?.length ? "Previous garment description" : "Recorded garments"} · ${esc(order.garments || "No garment description recorded")}</p>
       <p>${jobs.length ? esc(garmentProgressText(jobs)) : "Review the description and add each garment before confirming the breakdown."}</p>
-      <p>Order quote ${fmtINR(order.amount)} · Advance ${fmtINR(order.advancePaid)}</p>
+      <p>Order quote ${order.amount == null ? "Unrecorded" : fmtINR(order.amount)} · Advance ${order.advancePaid == null ? "Unrecorded" : fmtINR(order.advancePaid)}</p>
+      ${order.commercialReviewRequired ? '<p role="status"><b>Fabric / payment review pending.</b> Garment changes have not adjusted order totals or released reserved fabric.</p>' : ""}
       ${order.productionBeforeGarmentJobs ? `<p>Previous order stage · ${esc(order.productionBeforeGarmentJobs.status)}</p>` : ""}
       ${order.workflow?.length ? '<button class="btn sm" id="gjLegacy">View previous order workflow</button>' : ""}
     </div>
     <div class="garment-toolbar">
       <button class="btn" id="gjAdd">Add garment jobs</button>
       <button class="btn primary" id="gjSave" ${!garmentWorkspaceDirty() ? "disabled" : ""}>${savedIds.size ? "Save garment jobs" : "Confirm garment breakdown"}</button>
+      ${savedIds.size ? `<button class="btn" id="gjReview" ${garmentWorkspaceDirty() ? "disabled" : ""}>Review fabric &amp; payments</button>` : ""}
       <span id="gjStatus" role="status" aria-live="polite">${garmentWorkspaceDirty() ? "Unsaved garment changes" : "Garment list saved"}</span>
     </div>
     <div class="garment-grid">
       ${jobs.map(job => {
         const version = workspace.versions[job.measurementVersionId];
         const fabric = getSwatchByCode(job.swatchCode);
-        return `<article class="card garment-card" data-job-card="${esc(job.id)}">
-          <div class="garment-heading"><b>${esc(job.label)}</b><span class="badge ${stageBadgeClass(job.status)}">${esc(job.status)}</span></div>
+        return `<article class="card garment-card ${job.cancellation ? "is-cancelled" : ""}" data-job-card="${esc(job.id)}">
+          <div class="garment-heading"><b>${esc(job.label)}</b><span class="badge ${stageBadgeClass(job.cancellation ? "Cancelled" : job.status)}">${job.cancellation ? "Cancelled" : esc(job.status)}</span></div>
+          ${job.cancellation ? `<p><b>Cancellation reason:</b> ${esc(job.cancellation.reason)}<br>Stage retained: ${esc(job.status)} · ${esc(new Date(job.cancellation.at).toLocaleString())}</p>` : ""}
           <p>${esc(GARMENT_JOB_TYPES[job.type]?.label || job.type)}${job.bundleLabel ? " · " + esc(job.bundleLabel) : ""} · Job ${esc(job.id)}</p>
           <p>Fabric · ${esc(job.swatchCode || "Choose fabric")}${fabric?.colorName ? " · " + esc(fabric.colorName) : ""}</p>
           <p>Maker · ${esc(job.maker || "Unassigned")}</p>
@@ -5027,17 +5128,22 @@ function vGarmentJobs() {
           <p>${(job.workflow || []).filter(step => step.done).length} of ${(job.workflow || []).length} tasks completed</p>
           ${job.notes ? `<p>${esc(job.notes)}</p>` : ""}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn sm" data-job-edit="${esc(job.id)}">Edit garment &amp; progress</button>
+            <button class="btn sm" data-job-edit="${esc(job.id)}" ${job.cancellation ? "disabled" : ""}>Edit garment &amp; progress</button>
             ${version ? `<button class="btn sm" data-job-copy="${esc(job.id)}">View measurement copy</button>` : ""}
-            <button class="btn sm" data-job-print="${esc(job.id)}" ${!version || !savedIds.has(job.id) || garmentWorkspaceDirty() ? 'disabled title="Choose measurements and save garment changes before printing"' : ""}>Workshop sheet</button>
+            <button class="btn sm" data-job-print="${esc(job.id)}" ${job.cancellation || !version || !savedIds.has(job.id) || garmentWorkspaceDirty() ? 'disabled title="Active saved garments with saved measurements can be printed"' : ""}>Workshop sheet</button>
+            ${savedIds.has(job.id) ? `<button class="btn sm ${job.cancellation ? "" : "danger"}" data-job-cancel="${esc(job.id)}" ${!job.cancellation && job.status === "Delivered" ? 'disabled title="Delivered garments require a return/refund review"' : ""}>${job.cancellation ? "Reinstate garment" : "Cancel garment"}</button>` : ""}
             ${!savedIds.has(job.id) ? `<button class="btn sm danger" data-job-remove="${esc(job.id)}">Remove draft job</button>` : ""}
           </div>
           ${job.history?.length ? `<details><summary>Activity (${job.history.length})</summary>
-            <ul>${job.history.map(event => `<li>${esc(new Date(event.at).toLocaleString())} · ${esc(event.before.status)} → ${esc(event.after.status)} · Maker ${esc(event.after.maker || "Unassigned")} · ${event.after.workflow.filter(step => step.done).length} tasks completed</li>`).join("")}</ul>
+            <ul>${job.history.map(event => `<li>${esc(new Date(event.at).toLocaleString())} · ${esc(event.kind || "Edited")} ${event.reason ? "· " + esc(event.reason) + " · " : "· "}${esc(event.before.status)} → ${esc(event.after.status)} · Maker ${esc(event.after.maker || "Unassigned")} · ${event.after.workflow.filter(step => step.done).length} tasks completed</li>`).join("")}</ul>
           </details>` : ""}
         </article>`;
       }).join("")}
-    </div>`;
+    </div>
+    ${(order.garmentRevisions?.length || order.commercialAdjustments?.length) ? `<details class="card" style="margin-top:14px;"><summary>Order amendment &amp; commercial review history</summary>
+      ${(order.garmentRevisions || []).map(event => `<p>${esc(new Date(event.at).toLocaleString())} · ${esc(event.kind)} ${esc(event.label)} · ${esc(event.reason)}</p>`).join("")}
+      ${(order.commercialAdjustments || []).map(event => `<p>${esc(new Date(event.at).toLocaleString())} · ${event.confirmed ? "Review confirmed" : "Totals adjusted"} · ${esc(event.reason)}</p><ul>${Object.entries(event.changes).map(([field,change]) => `<li>${esc(ORDER_COMMERCIAL_FIELDS[field] || field)}: ${esc(change.before ?? "Unrecorded")} → ${esc(change.after ?? "Unrecorded")}</li>`).join("")}</ul>`).join("")}
+    </details>` : ""}`;
 }
 
 function garmentAssignmentFields(job = {}) {
@@ -5091,6 +5197,7 @@ function garmentJobModal(jobId) {
   const workspace = GARMENT_WORKSPACE;
   const job = workspace.jobs.find(item => item.id === jobId);
   const editing = Boolean(job);
+  if (job?.cancellation) { toast("Reinstate the garment before editing it."); return; }
   let draftWorkflow = copyGarmentData(job?.workflow || []);
   const taskFields = () => draftWorkflow.map((step, index) => `
     <div class="garment-task">
@@ -5108,7 +5215,8 @@ function garmentJobModal(jobId) {
           ${Object.entries(GARMENT_JOB_TYPES).map(([id, value]) => `<option value="${id}">${esc(value.label)}</option>`).join("")}
         </select></div>
         <div class="field"><label for="gjQty">Quantity</label><input id="gjQty" type="number" min="1" max="100" step="1" value="1"></div>
-      </div><p id="gjPreview" role="status"></p>`}
+      </div><p id="gjPreview" role="status"></p>
+      ${DB.orders[workspace.orderId].garmentJobs?.length ? '<div class="field"><label for="gjAddReason">Reason for adding garments</label><input id="gjAddReason" placeholder="e.g. Client requested an extra shirt"></div>' : ""}`}
     <div class="grid3">${garmentAssignmentFields(job)}</div>
     ${editing ? `
       <div class="field"><label for="gjStage">Current garment stage</label><select id="gjStage">
@@ -5165,12 +5273,41 @@ function garmentJobModal(jobId) {
         });
         workspace.jobs = workspace.jobs.map(item => item.id === job.id ? updated : item);
       } else {
+        if ($("#gjAddReason")) {
+          assignments.additionReason = $("#gjAddReason").value.trim();
+          if (!assignments.additionReason) throw new Error("Enter a reason for adding garments to this order.");
+        }
         const added = makeGarmentJobs($("#gjType").value, Number($("#gjQty").value), assignments, workspace.jobs);
         workspace.jobs.push(...added);
       }
       closeModal();
       render();
     } catch (error) { $("#gjError").textContent = error.message; }
+  };
+}
+
+function garmentCancellationModal(jobId) {
+  const workspace = GARMENT_WORKSPACE;
+  const job = workspace.jobs.find(item => item.id === jobId);
+  if (!job) return;
+  const reinstate = Boolean(job.cancellation);
+  openModal(`<h2>${reinstate ? "Reinstate" : "Cancel"} ${esc(job.label)}</h2>
+    <p>This changes only this garment. Other suit pieces remain separate.</p>
+    <p>Its saved measurements, maker, fabric, trial notes and completed tasks will be retained. Order totals and reserved fabric require a separate review.</p>
+    ${reinstate ? `<p>Previous cancellation: ${esc(job.cancellation.reason)}. The garment returns to its retained stage: ${esc(job.status)}.</p>` : '<p>Tell the workshop about cancellation; previously printed sheets cannot be recalled.</p>'}
+    <div class="field"><label for="gjChangeReason">Reason</label><textarea id="gjChangeReason"></textarea></div>
+    <p id="gjChangeError" role="alert"></p>
+    <div class="actions"><button class="btn" id="gjChangeClose">Back</button><button class="btn primary" id="gjChangeApply">${reinstate ? "Apply reinstatement" : "Apply cancellation"}</button></div>`);
+  $("#gjChangeReason").focus();
+  $("#gjChangeClose").onclick = closeModal;
+  $("#gjChangeApply").onclick = () => {
+    try {
+      const updated = reviseGarmentCancellation(job,$("#gjChangeReason").value,reinstate);
+      workspace.jobs = workspace.jobs.map(item => item.id === job.id ? updated : item);
+      closeModal();
+      render();
+      $("#gjSave").focus({preventScroll:true});
+    } catch (error) { $("#gjChangeError").textContent = error.message; }
   };
 }
 
@@ -5235,6 +5372,7 @@ function vGarmentWorkshopSheet() {
       <span>Saved garment details · ${esc(sheet.unit === "cm" ? "Centimetres" : sheet.unit === "in" ? "Inches" : sheet.unit)}</span>
     </div>
     <article id="garmentPrintSheet" class="workshop-paper" aria-label="Garment workshop sheet">
+      <p id="workshopPrintWarning" role="alert" hidden style="border:3px solid #9a2525;padding:10px;font-weight:bold;"></p>
       <table class="workshop-document">
         <colgroup><col style="width:20%"><col style="width:16%"><col style="width:16%"><col style="width:48%"></colgroup>
         <thead><tr><td colspan="4"><div class="workshop-running-header">
@@ -5281,7 +5419,21 @@ function mountGarmentWorkshopSheet() {
   const sheet = GARMENT_PRINT_SHEET;
   const heading = (DEMO_MODE ? "DEMO · " : "") + "MODISTO · " + sheet.clientName + " · Order " + sheet.orderNo + " · Job " + sheet.jobId;
   $("#garmentPageStyle").textContent = '@media print { @page garment-sheet { @top-left { content: ' + JSON.stringify(heading) + '; font: 8px Arial, sans-serif; color: #17202b; } @bottom-right { content: counter(page); font: 8px Arial, sans-serif; } } }';
-  $("#workshopPrintNow").onclick = () => window.print();
+  const validate = () => {
+    try {
+      const current = buildGarmentWorkshopSheet(latestStoredDatabase(),sheet.orderId,sheet.jobId);
+      if (JSON.stringify(current) !== JSON.stringify(sheet)) throw new Error("This garment sheet changed. Reopen its preview before printing.");
+      $("#workshopPrintWarning").hidden = true;
+      return true;
+    } catch (error) {
+      $("#workshopPrintWarning").textContent = "DO NOT PRODUCE — " + error.message;
+      $("#workshopPrintWarning").hidden = false;
+      toast(error.message);
+      return false;
+    }
+  };
+  window.onbeforeprint = validate;
+  $("#workshopPrintNow").onclick = () => { if (validate()) window.print(); };
   $("#workshopBack").onclick = () => {
     const sheet = GARMENT_PRINT_SHEET;
     openGarmentWorkspace(sheet.orderId);
@@ -5294,6 +5446,11 @@ function mountGarmentJobs() {
   $$("#main [data-job-edit]").forEach(button => button.onclick = () => garmentJobModal(button.dataset.jobEdit));
   $$("#main [data-job-copy]").forEach(button => button.onclick = () => showGarmentMeasurement(button.dataset.jobCopy));
   $$("#main [data-job-print]").forEach(button => button.onclick = () => openGarmentWorkshopSheet(button.dataset.jobPrint));
+  $$("#main [data-job-cancel]").forEach(button => button.onclick = () => garmentCancellationModal(button.dataset.jobCancel));
+  if ($("#gjReview")) $("#gjReview").onclick = () => {
+    if (garmentWorkspaceDirty()) { toast("Save garment changes before reviewing order totals."); return; }
+    ACTIONS.editOrder(GARMENT_WORKSPACE.orderId);
+  };
   $$("#main [data-job-remove]").forEach(button => button.onclick = () => {
     GARMENT_WORKSPACE.jobs = GARMENT_WORKSPACE.jobs.filter(job => job.id !== button.dataset.jobRemove);
     render();
@@ -5347,7 +5504,7 @@ function vOrders() {
       <span style="font-size:12px;font-weight:700;">All Orders</span>
       <b style="font-size:15px;color:var(--navy);">${allOrders.length}</b>
     </button>
-    ${ORDER_STAGES.map(s => `
+    ${ORDER_FILTER_STAGES.map(s => `
       <button type="button" class="stage-pill-btn ${ACTIVE_ORDER_STAGE_FILTER === s ? "active" : ""}" data-stage-pill="${esc(s)}">
         <span class="badge ${stageBadgeClass(s)}">${esc(s)}</span>
         <b style="font-size:15px;color:var(--navy);">${stageCounts[s] || 0}</b>
@@ -5360,7 +5517,7 @@ function vOrders() {
       <input id="orderSearch" type="text" placeholder="Search by Order #, client, garment, Swatch # (e.g. SW-1042), or tailor…">
       <select id="orderStageFilter" aria-label="Filter by Order Stage">
         <option value="">All Workshop Stages (${allOrders.length})</option>
-        ${ORDER_STAGES.map(s => `<option value="${esc(s)}" ${ACTIVE_ORDER_STAGE_FILTER === s ? "selected" : ""}>${esc(s)} (${stageCounts[s] || 0})</option>`).join("")}
+        ${ORDER_FILTER_STAGES.map(s => `<option value="${esc(s)}" ${ACTIVE_ORDER_STAGE_FILTER === s ? "selected" : ""}>${esc(s)} (${stageCounts[s] || 0})</option>`).join("")}
       </select>
       ${ACTIVE_ORDER_STAGE_FILTER ? `<button class="btn sm soft" data-stage-pill="">✕ Clear Stage Filter (${esc(ACTIVE_ORDER_STAGE_FILTER)})</button>` : ""}
     </div>
@@ -5391,7 +5548,7 @@ function vOrders() {
 function vTeam() {
   const employees = Object.values(DB.employees || {});
   const orders = Object.values(DB.orders);
-  const activeOrders = orders.filter(o => o.status !== "Delivered");
+  const activeOrders = orders.filter(o => !["Delivered","Cancelled"].includes(o.status));
 
   // Compute workload stats per employee
   const empStats = employees.map(emp => {
@@ -5401,7 +5558,7 @@ function vTeam() {
       (o.workflow || []).some(w => !w.done && (w.assignedTo || "").toLowerCase() === emp.name.toLowerCase()))
     );
     const garmentJobs = activeOrders.flatMap(order => (order.garmentJobs || [])
-      .filter(job => job.status !== "Delivered" && job.maker === emp.name)
+      .filter(job => !job.cancellation && job.status !== "Delivered" && job.maker === emp.name)
       .map(job => ({ order, job })));
     const allHistoryOrders = orders.filter(o =>
       (o.assignedTo || "").toLowerCase() === emp.name.toLowerCase() ||
@@ -5466,7 +5623,7 @@ function vTeam() {
   ${selectedStat?.garmentJobs.length ? `
     <div class="card">
       <div class="card-title">Garment jobs assigned to ${esc(selectedStat.emp.name)}</div>
-      ${selectedStat.garmentJobs.map(({order, job}) => `<p>
+      ${selectedStat.garmentJobs.map(({order, job}) => `<p data-team-garment="${esc(job.id)}">
         <b>${esc(job.label)}</b> · ${esc(order.orderNo)} · ${esc(job.status)}
         <button class="btn xs" data-act="openGarments" data-id="${order.id}">Open garment jobs</button>
       </p>`).join("")}
@@ -6311,7 +6468,7 @@ function orderModal(o, clientId, sourceDocket = null) {
       <div class="field">
         <label>Workshop Stage</label>
         <select id="omStatus" ${o.garmentJobs?.length ? "disabled" : ""}>
-          ${ORDER_STAGES.map(s => `<option ${s === (o.status || "New") ? "selected" : ""}>${s}</option>`).join("")}
+          ${(o.status === "Cancelled" ? ORDER_FILTER_STAGES : ORDER_STAGES).map(s => `<option ${s === (o.status || "New") ? "selected" : ""}>${s}</option>`).join("")}
         </select>
       </div>
       <div class="field">
@@ -6351,7 +6508,7 @@ function orderModal(o, clientId, sourceDocket = null) {
         <label>Garments Ordered</label>
         <div style="display:flex;gap:8px;">
           <input id="omGarments" list="garmentDatalist" value="${esc(garmentOrderDescription(o))}" placeholder="e.g. 2-Piece Bespoke Suit + 2 Bespoke Shirts" ${o.garmentJobs?.length ? "readonly" : ""}>
-          <button type="button" class="btn sm soft" id="btnAutoEstCloth" title="Estimate fabric meters from this client's body measurements">📏 Auto-Estimate Cloth</button>
+          <button type="button" class="btn sm soft" id="btnAutoEstCloth" ${o.garmentJobs?.length ? 'disabled title="Review fabric requirements for the individual garments before entering order totals"' : 'title="Estimate fabric meters from this client\'s body measurements"'}>📏 Auto-Estimate Cloth</button>
         </div>
         <datalist id="garmentDatalist">
           ${GARMENT_OPTIONS.map(g => `<option value="${esc(g)}">`).join("")}
@@ -6436,9 +6593,19 @@ function orderModal(o, clientId, sourceDocket = null) {
       <label>Order &amp; Trial Notes</label>
       <textarea id="omNotes">${esc(o.notes || "")}</textarea>
     </div>
+    ${o.garmentJobs?.length ? `<div class="card" style="margin-top:12px;">
+      <h3>Fabric &amp; payment review</h3>
+      <p>${o.commercialReviewRequired ? "Garments have changed. Review the order totals and fabric reservation before confirming." : "Changes to order totals are recorded with a reason."}</p>
+      <div class="field"><label for="omReserved">Reserved fabric (m)</label><input type="number" min="0" step="any" id="omReserved" value="${esc(orderFabricReservation(o))}"></div>
+      <p>Use 0 to release the order's remaining fabric reservation. Fabric metres used for costing, recorded costs, quote and advance remain separate totals above. Stock already marked as allocated in the fabric library is not rewritten.</p>
+      <div class="field"><label for="omAdjustmentReason">Reason / review note</label><textarea id="omAdjustmentReason" placeholder="Record the agreed change, or explain why totals remain unchanged"></textarea></div>
+      <label style="display:flex;align-items:start;gap:8px;"><input type="checkbox" id="omReviewConfirmed" style="width:22px;height:22px;flex-shrink:0;">I have reviewed fabric, quote and recorded advance for these garment changes.</label>
+      <p>This records reviewed totals; it does not process a refund or create a payment transaction.</p>
+      <p id="omReviewError" role="alert"></p>
+    </div>` : ""}
 
     <div class="actions">
-      ${o.id ? `<button class="btn danger" id="omDelete" style="margin-right:auto;">Delete Order</button>` : ""}
+      ${o.id && !o.garmentJobs?.length ? `<button class="btn danger" id="omDelete" style="margin-right:auto;">Delete Order</button>` : ""}
       <button class="btn" id="omCancel">Cancel</button>
       <button class="btn primary" id="omSave">${o.id ? "Save Order & Costing" : "Create Order"}</button>
     </div>
@@ -6521,8 +6688,15 @@ function orderModal(o, clientId, sourceDocket = null) {
   const del = $("#omDelete");
   if (del) {
     del.onclick = () => {
-      delete DB.orders[o.id];
-      persist();
+      try {
+        const latest = latestStoredDatabase();
+        if (JSON.stringify(latest.orders[o.id]) !== JSON.stringify(o) || latest.orders[o.id]?.garmentJobs?.length) throw new Error("This order changed. Reopen it; saved garment histories cannot be deleted.");
+        const orders = {...latest.orders};
+        delete orders[o.id];
+        const next = {...latest,orders};
+        writeDatabase(next);
+        DB = next;
+      } catch (error) { toast("Could not delete order. " + error.message); return; }
       closeModal();
       toast("Order deleted");
       render();
@@ -6535,7 +6709,7 @@ function orderModal(o, clientId, sourceDocket = null) {
     const statusVal = $("#omStatus").value;
     const cutterVal = $("#omAssigned").value;
     const karigarVal = $("#omKarigar").value;
-    const rec = {
+    let rec = {
       ...o,
       id: o.id || uid("o"),
       clientId: sourceDocket?.clientId || (o.measurementId || o.garmentJobs?.length ? o.clientId : $("#omClient").value),
@@ -6611,6 +6785,12 @@ function orderModal(o, clientId, sourceDocket = null) {
         throw new Error("This order changed in another tab. Reopen the order before saving.");
       }
       if (!latest.clients[rec.clientId]) throw new Error("The client is no longer available.");
+      if (o.garmentJobs?.length) {
+        const reserved = $("#omReserved").value;
+        if (reserved === "" || !Number.isFinite(Number(reserved)) || Number(reserved) < 0) throw new Error("Enter reserved fabric metres; use 0 to release the reservation.");
+        if (o.reservedFabricMeters != null || Number(reserved) !== orderFabricReservation(o) || Number(reserved) !== orderFabricReservation(rec)) rec.reservedFabricMeters = Number(reserved);
+        rec = reviewOrderCommercials(o,rec,$("#omAdjustmentReason").value,$("#omReviewConfirmed").checked);
+      }
       const next = { ...latest, orders: { ...latest.orders, [rec.id]: rec } };
       const linkedM = !rec.measurementId && !rec.garmentJobs?.length && Object.values(latest.measurements).find(m =>
         m.clientId === rec.clientId && rec.orderNo && orderNumberKey(m.orderNo) === orderNumberKey(rec.orderNo)
@@ -6623,13 +6803,15 @@ function orderModal(o, clientId, sourceDocket = null) {
       writeDatabase(next);
       DB = next;
     } catch (error) {
+      if ($("#omReviewError")) $("#omReviewError").textContent = error.message;
       toast("Could not save order. " + error.message);
       return;
     }
     closeModal();
     pushToSheets("Orders", flatOrder(rec));
     toast(o.id ? `Order ${rec.orderNo} & Sequence Stage (${rec.status}) updated` : "New order created");
-    render();
+    if (VIEW.name === "garments" && GARMENT_WORKSPACE?.orderId === rec.id) openGarmentWorkspace(rec.id);
+    else render();
   };
 }
 
