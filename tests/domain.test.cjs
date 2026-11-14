@@ -2,11 +2,17 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const html = fs.readFileSync('index.html', 'utf8');
+const html = fs.readFileSync('index.html', 'utf8').replace(/\r\n/g, '\n');
 const source = html.match(/<script>([\s\S]*)<\/script>/)[1];
-const prefix = source.slice(source.indexOf('const SCHEMA'), source.indexOf('/* ---------------- HELPERS'));
-const conversion = source.slice(source.indexOf('function convertMeasurementUnit'), source.indexOf('const MEASUREMENT_VIEW_KEY'));
-const save = source.slice(source.indexOf('async function saveMeasure'), source.indexOf('/* ============================================================================\n   4. ORDERS'));
+function section(start, end) {
+  const from = source.indexOf(start);
+  const to = source.indexOf(end, from + start.length);
+  assert.ok(from >= 0 && to > from, 'Missing source boundaries for ' + start);
+  return source.slice(from, to);
+}
+const prefix = section('const SCHEMA', '/* ---------------- HELPERS');
+const conversion = section('function convertMeasurementUnit', 'const MEASUREMENT_VIEW_KEY');
+const save = section('async function saveMeasure', '/* ============================================================================\n   4. ORDERS');
 function app(initial = {}, search = '') {
   const storage = new Map(Object.entries(initial));
   const status = { textContent: '' };
@@ -20,6 +26,41 @@ function app(initial = {}, search = '') {
   return { run: code => vm.runInContext(code, context), storage, context, status };
 }
 const copy = value => JSON.parse(JSON.stringify(value));
+
+test('tracking reports actual dates and readiness without changing legacy orders or garment history', () => {
+  const a = app();
+  const summarize = order => {
+    const before = copy(order);
+    a.context.order = order;
+    const result = copy(a.run('summarizeTrackedOrder(order, {branch:"London · Northwood"}, "2026-11-11", "2026-11-17")'));
+    assert.deepEqual(order, before);
+    return result;
+  };
+  const legacy = {status:'Cutting', delivery:'2026-02-30', trialDate:'2026-11-11'};
+  const old = summarize(legacy);
+  assert.equal(old.branch, 'London');
+  assert.equal(old.delivery, '');
+  assert.equal(old.overdue, false);
+  assert.equal(old.upcomingFittings[0].label, 'Fitting (legacy date)');
+  const trial = (key, scheduledDate, done = false) => ({key, scheduledDate, done});
+  assert.equal(summarize({...legacy, workflow:[trial('trial_1', '2026-11-11', true)]}).events.length, 0);
+  const order = {status:'1st Trial / Fitting', delivery:'2026-11-10', trialDate:'2026-11-12', garmentJobs:[
+    {id:'jacket', label:'Jacket', status:'Ready', workflow:[
+      trial('trial_1', '2026-11-10', true), trial('trial_2', '2026-11-11'), trial('trial_3', '2026-11-17'), trial('trial_4', '2026-11-18')
+    ]},
+    {id:'trousers', status:'Delivered', workflow:[trial('trial_1', '2026-11-11')]},
+    {id:'shirt', status:'Cutting', cancellation:{reason:'Client cancelled'}, workflow:[trial('trial_1', '2026-11-11')]}
+  ]};
+  const item = summarize(order);
+  assert.equal(item.overdue, true);
+  assert.equal(item.stageGroup, 'Fitting');
+  assert.deepEqual([item.ready, item.delivered, item.total], [1, 1, 2]);
+  assert.equal(item.collection, true);
+  assert.deepEqual(item.upcomingFittings.map(event => [event.label, event.jobId]), [['Fitting 2', 'jacket'], ['Fitting 3', 'jacket']]);
+  assert.equal(item.nextEvent.date, '2026-11-11');
+  assert.equal(summarize({...order, status:'Delivered'}).events.length, 0);
+  assert.equal(summarize({...order, status:'Cancelled', garmentJobs:[order.garmentJobs[2]]}).collection, false);
+});
 
 test('order search finds individual makers, fabrics and retained cancelled garment labels',()=>{
  const a=app();

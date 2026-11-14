@@ -1019,48 +1019,6 @@ tr.rowlink:hover { background: #faf7f0; }
   font-size: 9.5px;
 }
 
-/* Interactive Pipeline Stage Cards */
-.stage-pill-btn {
-  background: #fff;
-  border: 1.5px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  transition: all .15s;
-}
-.stage-pill-btn:hover {
-  border-color: var(--gold);
-  transform: translateY(-1px);
-}
-.stage-pill-btn.active {
-  background: var(--navy);
-  border-color: var(--gold);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(19,27,41,.22);
-}
-.stage-pill-btn.active b {
-  color: #fff !important;
-}
-
-/* Timeline & Pain-Point Bars */
-.tl-bar-wrap {
-  width: 100%;
-  background: #ece8df;
-  height: 8px;
-  border-radius: 99px;
-  overflow: hidden;
-  position: relative;
-  margin-top: 4px;
-}
-.tl-bar-fill {
-  height: 100%;
-  border-radius: 99px;
-  transition: width .25s;
-}
 .shortage-banner {
   background: var(--danger-bg);
   border: 1.5px solid var(--danger);
@@ -1263,11 +1221,114 @@ tr.rowlink:hover { background: #faf7f0; }
 .picker-choice { display: block; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .picker-choice span { display: block; color: var(--ink-soft); font-size: 12px; }
 .garment-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 25; background: var(--bg); padding: 10px 0; }
-.garment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 12px; }
 .garment-card p { margin: 8px 0; overflow-wrap: anywhere; }
+
+/* Today and order tracking */
+.tracking { display: grid; gap: 16px; min-width: 0; overflow-wrap: anywhere; }
+.tracking h1, .tracking h2, .tracking p { margin: 0; }
+.tracking h1 { font: 700 clamp(29px, 4vw, 38px)/1.1 'Cormorant Garamond', Georgia, serif; color: var(--navy); }
+.tracking h2 { font-size: 18px; font-weight: 650; color: var(--navy); }
+.tracking-heading, .tracking-panel-heading, .tracking-controls {
+  display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+}
+.tracking-heading p, .tracking-count, .tracking-panel p, .tracking-order small { color: var(--ink-soft); }
+.tracking-controls { justify-content: flex-start; }
+.tracking-controls label { display: grid; gap: 4px; min-width: 0; font-weight: 600; }
+.tracking-controls label.tracking-checkbox { display: flex; align-items: center; gap: 8px; min-height: 44px; align-self: end; cursor: pointer; }
+.tracking-controls .tracking-checkbox input { min-height: 0; width: 18px; height: 18px; }
+.tracking-controls input, .tracking-controls select {
+  min-height: 44px; max-width: 100%; padding: 8px 10px; font: inherit; font-weight: 400;
+  border: 1px solid var(--line-2); border-radius: 8px; background: var(--card); color: var(--navy);
+}
+.tracking-search { flex: 1 1 260px; }
+.tracking-more { align-self: end; }
+.tracking-more[open] { padding: 0 10px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+.tracking summary { min-height: 44px; padding: 12px 2px; cursor: pointer; font-weight: 650; }
+.tracking button, .tracking select { min-height: 44px; }
+.tracking button { white-space: normal; }
+.tracking :focus-visible { outline: 2px solid var(--gold-strong); outline-offset: 3px; }
+.tracking-metrics, .tracking-columns { display: grid; gap: 12px; }
+.tracking-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tracking-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tracking-metric {
+  display: grid; gap: 2px; padding: 14px 16px; text-align: left; cursor: pointer; color: var(--navy);
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); font: inherit;
+}
+.tracking-metric strong { font-size: 29px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tracking-metric:hover, .production-bars button:hover { background: var(--cream); border-color: var(--gold); }
+.tracking-metric span { font-weight: 650; }
+.tracking-panel, .tracking-results { margin: 0; min-width: 0; }
+.tracking-panel { display: grid; gap: 8px; align-content: start; }
+.tracking-panel > .btn { justify-self: start; }
+.tracking-queue, .tracking-orders { padding: 0; margin: 0; list-style: none; }
+.tracking-queue li { padding: 4px 0 9px; display: grid; border-top: 1px solid var(--line); }
+.tracking-queue li > span { color: var(--ink-soft); }
+.tracking-link {
+  justify-self: start; border: 0; padding: 0; background: transparent; color: var(--gold-strong);
+  font: inherit; font-weight: 700; text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.production-bars { display: grid; }
+.production-bars button {
+  display: grid; grid-template-columns: minmax(75px, 8em) minmax(0, 1fr) 3ch; gap: 12px; align-items: center;
+  text-align: left; font: inherit; color: var(--navy); background: none;
+  border: 1px solid transparent; border-radius: 6px; padding: 4px 8px; cursor: pointer;
+}
+.production-track { height: 10px; background: var(--cream); border-radius: 8px; overflow: hidden; }
+.production-track > span { display: block; height: 100%; background: var(--gold); }
+.tracking-views { display: flex; flex-wrap: wrap; gap: 6px; }
+.tracking-views [aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: white; }
+.tracking-filters { border-bottom: 1px solid var(--line); }
+.tracking-filters .tracking-controls { padding-bottom: 10px; }
+.tracking-order, .tracking-order-head {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, .75fr);
+  align-items: start; gap: 12px;
+}
+.tracking-order-head { padding: 0 0 10px; color: var(--ink-soft); font-size: 12px; font-weight: 700; }
+.tracking-order { padding: 12px 0; border-top: 1px solid var(--line); }
+.tracking-order small, .tracking-identity > span { display: block; }
+.tracking-identity > span { color: var(--ink-soft); }
+.tracking-order .badge { white-space: normal; }
+.tracking-order .tracking-exception { margin-top: 4px; }
+.tracking .tracking-overdue { color: var(--danger); font-weight: 650; }
+.tracking-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.tracking-mobile-label { display: none !important; }
+.tracking-load { margin-top: 10px; }
+.tracking-overview { max-width: 1050px; }
+.tracking-jobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 315px), 1fr)); gap: 12px; }
+.tracking-job p, .tracking-job ul { margin: 0; }
+.tracking-job .tracking-controls { gap: 6px; }
+.tracking-job details[open] { display: grid; gap: 8px; }
+.tracking-job details[open] > * + * { margin-bottom: 8px; }
+.tracking-panel ul { margin: 0; padding-inline-start: 1.3em; }
+.tracking-panel > .tracking-queue { padding-inline-start: 0; }
+.tracking-workload { display: grid; gap: 4px; }
+.tracking-workload button {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+  color: var(--navy); text-align: left; font: inherit; cursor: pointer;
+}
+.tracking-workload button[aria-pressed="true"] { background: var(--cream); border-color: var(--gold); }
+.tracking-workload button > :last-child { text-align: right; }
+.tracking-workload small { display: block; color: var(--ink-soft); }
+.garment-task-group { margin-top: 10px; }
+.garment-task-group summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-weight: 650; }
+@media (max-width: 900px) {
+  .tracking-order-head { display: none; }
+  .tracking-order { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 12px; }
+  .tracking-order:first-child { border-top: 0; }
+  .tracking-stage { grid-column: 2; grid-row: 1; text-align: right; }
+  .tracking-garments { grid-column: 1 / -1; }
+  .tracking-mobile-label { display: block !important; }
+}
+@media (max-width: 620px) {
+  .tracking { gap: 12px; }
+  .tracking-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tracking-columns { grid-template-columns: minmax(0, 1fr); }
+  .tracking-metric, .tracking-panel, .tracking-results { padding: 12px; }
+}
 .garment-card.is-cancelled { background: #f1f2f3; border-left: 4px solid #68707c; }
 .garment-card .btn:disabled, .garment-toolbar .btn:disabled, #btnAutoEstCloth:disabled { opacity: .45; cursor: not-allowed; }
-.garment-heading { display: flex; gap: 8px; justify-content: space-between; align-items: start; }
 .garment-tasks { display: grid; gap: 10px; margin-top: 14px; }
 .garment-task { border: 1px solid var(--line); padding: 10px; border-radius: 7px; }
 .garment-task label { display: flex; gap: 8px; align-items: center; }
@@ -1339,6 +1400,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   #mtabs .tab { padding: 8px 10px; white-space: normal; text-align: left; }
 }
 @media (pointer: coarse) { .btn, .tab, .fbtn, .seg button, input, select { min-height: 44px; } }
+.nav-secondary { display: contents; }
+.nav #navMore { display: none; }
+.directory-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 12px; }
+.directory-card dl, .client-profile dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 12px; margin: 4px 0 12px; }
+.directory-card dd, .client-profile dd { margin: 0; }
+.directory-card dt, .client-profile dt { color: var(--ink-soft); }
+.fabric-sample { display: inline-block; width: 14px; height: 14px; border: 1px solid var(--line-2); border-radius: 4px; flex: none; }
+.measurement-context { margin-bottom: 12px; }
+.measurement-context { padding: 0; }
+.measurement-context summary { cursor: pointer; padding: 10px 14px; font-weight: 650; }
+.measurement-context > .btn { margin: 8px 14px; }
+.measurement-context .clientbar { margin: 0; border-radius: 0 0 var(--radius) var(--radius); }
+@media (max-width: 820px) {
+  .app .side { flex-direction: column; align-items: stretch; overflow: visible; }
+  .nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .nav button { justify-content: center; min-width: 0; min-height: 44px; padding-inline: 4px; }
+  .nav .ic { display: none; }
+  .nav #navMore { display: flex; }
+  .nav-secondary { grid-column: 1 / -1; display: none; }
+  .nav-secondary.is-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  .nav-secondary button { white-space: normal; }
+}
 </style>
 </head>
 <body>
@@ -1359,35 +1442,38 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
       </div>
     </div>
 
-    <nav class="nav" id="nav">
+    <nav class="nav" id="nav" aria-label="Main navigation">
       <button data-v="dashboard" class="on">
-        <span class="ic">▦</span>Dashboard
+        <span class="ic">▦</span>Today
       </button>
+      <button data-v="orders">
+        <span class="ic">🧾</span>Orders
+        <span class="cnt" id="navCntOrders">0</span>
+      </button>
+      <button data-v="measure">
+        <span class="ic">📏</span>Measure
+      </button>
+      <button type="button" id="navMore" aria-expanded="false" aria-controls="navSecondary">More</button>
+      <div class="nav-secondary" id="navSecondary">
       <button data-v="clients">
         <span class="ic">👤</span>Clients
         <span class="cnt" id="navCntClients">0</span>
       </button>
-      <button data-v="measure">
-        <span class="ic">📏</span>Measurements
-      </button>
-      <button data-v="orders">
-        <span class="ic">🧾</span>Orders &amp; Pipeline
-        <span class="cnt" id="navCntOrders">0</span>
-      </button>
       <button data-v="team">
-        <span class="ic">⏱</span>Team &amp; Timeline
+        <span class="ic">⏱</span>Workshop
         <span class="cnt" id="navCntTeam">0</span>
       </button>
       <button data-v="swatches">
-        <span class="ic">🧵</span>Fabrics &amp; Swatches
+        <span class="ic">🧵</span>Fabrics
         <span class="cnt" id="navCntSwatches">0</span>
       </button>
       <button data-v="costing">
         <span class="ic">📊</span>Costing &amp; Reports
       </button>
       <button data-v="settings">
-        <span class="ic">⚙</span>Settings &amp; Branding
+        <span class="ic">⚙</span>Settings
       </button>
+      </div>
     </nav>
 
     <div class="tailor-box">
@@ -1395,8 +1481,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
         <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold-soft);margin-bottom:3px;">Active Cutter / Tailor</div>
         <select id="activeTailorSelect" aria-label="Select Active Tailor"></select>
         <div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#9aa3b5;">
-          <span>Atelier Branch:</span>
-          <select id="activeBranchSelect" style="width:auto;font-size:11px;color:var(--gold-soft);font-weight:600;" aria-label="Select Atelier Branch">
+          <span>Branch preference:</span>
+          <select id="activeBranchSelect" style="width:auto;font-size:11px;color:var(--gold-soft);font-weight:600;" aria-label="Branch preference">
             <option value="Mumbai · Andheri W">Mumbai</option>
             <option value="London · Northwood">London</option>
           </select>
@@ -1435,7 +1521,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 </div>
 
 <!-- MODAL OVERLAY -->
-<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<div class="overlay" id="overlay"><div class="modal" id="modal" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -1820,6 +1906,73 @@ function orderWorkflowNote(progress) {
   const next = progress.next;
   const label = [next.garment,next.label.replace(/^\d+\.\s*/, "")].filter(Boolean).join(" · ");
   return "Next: " + label + (next.assignedTo ? " (" + next.assignedTo + ")" : "");
+}
+
+const PRODUCTION_GROUPS = [
+  ["Preparation", ["New", "Fabric Ordered", "Fabric Received"]],
+  ["Making", ["Cutting", "Stitching"]],
+  ["Fitting", ["1st Trial / Fitting"]],
+  ["Finishing", ["Finishing"]],
+  ["Ready", ["Ready"]]
+];
+
+function trackingDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const date = new Date(value + "T00:00:00Z");
+  return Number.isFinite(+date) && date.toISOString().slice(0, 10) === value ? value : "";
+}
+
+function summarizeTrackedOrder(order, client, today, through) {
+  const active = !["Delivered", "Cancelled"].includes(order.status);
+  const jobs = order.garmentJobs || [];
+  const retained = jobs.filter(job => !job.cancellation);
+  const working = active ? retained.filter(job => job.status !== "Delivered") : [];
+  const ready = retained.filter(job => job.status === "Ready").length;
+  const delivered = retained.filter(job => job.status === "Delivered").length;
+  const delivery = trackingDate(order.delivery);
+  const overdue = active && Boolean(delivery && delivery < today);
+  const branch = (client?.branch || "").split(" · ")[0];
+  const stageGroup = PRODUCTION_GROUPS.find(([, stages]) => stages.includes(order.status))?.[0] || "Other";
+  const events = [];
+  if (active) {
+    const sources = jobs.length ? working : [order];
+    for (const source of sources) {
+      const trials = (source.workflow || []).filter(isTrialWorkflowStep);
+      trials.forEach((trial, index) => {
+        const date = trackingDate(trial.scheduledDate);
+        if (!trial.done && date) {
+          events.push({
+            key: (jobs.length ? source.id : "order") + "-trial-" + index,
+            date, label: "Fitting " + (trial.trialNumber || (trial.key || "").match(/^trial_(\d+)$/)?.[1] || index + 1),
+            garment: jobs.length ? source.label : "", jobId: jobs.length ? source.id : ""
+          });
+        }
+      });
+      if (!jobs.length && !trials.length && trackingDate(order.trialDate)) {
+        events.push({key: "legacy-fitting", date: order.trialDate, label: "Fitting (legacy date)", garment: ""});
+      }
+    }
+    if (delivery) events.push({key: "delivery", date: delivery, label: "Delivery", garment: ""});
+  }
+  events.sort((a, b) => a.date.localeCompare(b.date));
+  const fittings = events.filter(event => event.key !== "delivery");
+  const upcomingFittings = fittings.filter(event => event.date >= today && event.date <= through);
+  const reasons = [];
+  if (overdue) reasons.push({priority: 0, text: "Delivery overdue", date: delivery});
+  if (fittings.some(event => event.date < today)) reasons.push({priority: 1, text: "Past fitting date — confirm outcome"});
+  if (active && !jobs.length) reasons.push({priority: 2, text: "Garment breakdown needed"});
+  const missing = [
+    ["maker", "maker"], ["swatchCode", "fabric swatch"], ["measurementVersionId", "measurement copy"]
+  ].filter(([field]) => working.some(job => !job[field])).map(([, label]) => label);
+  if (missing.length) reasons.push({priority: 2, text: "Missing " + missing.join(", ")});
+  if (order.commercialReviewRequired) reasons.push({priority: 3, text: "Fabric / payment review pending"});
+  return {
+    order, client, active, delivery, overdue, branch: ["Mumbai", "London"].includes(branch) ? branch : "Unspecified",
+    ready, delivered, total: retained.length, cancelled: jobs.length - retained.length,
+    collection: active && (jobs.length ? ready > 0 : order.status === "Ready"),
+    stageGroup, events, upcomingFittings, reasons,
+    nextEvent: events.find(event => event.date >= today) || null
+  };
 }
 
 function recordedOrderPayments(order) {
@@ -2690,14 +2843,6 @@ function confirmDialog(title, message, confirmLabel, onConfirm) {
   };
 }
 
-function ageFrom(bday) {
-  if (!bday) return null;
-  const b = new Date(bday + "T00:00:00"), n = new Date();
-  let a = n.getFullYear() - b.getFullYear();
-  if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
-  return a;
-}
-
 function makeOrderNo() {
   const y = new Date().getFullYear();
   const count = Object.keys(DB.orders).length + Object.keys(DB.measurements).length + 1250;
@@ -2956,13 +3101,19 @@ let VIEW = { name: "dashboard" };
 let MREC = null;
 let LAST_FOCUSED_INPUT = null;
 let ACTIVE_MEASURE_TAB = "lower";
-let ACTIVE_ORDER_STAGE_FILTER = "";
+let TODAY_BRANCH = "";
+const ORDER_PAGE_SIZE = 25;
+const INITIAL_ORDER_LIST = {view: "active", query: "", branch: "", stage: "", group: "", limit: ORDER_PAGE_SIZE, filtersOpen: false};
+const ORDER_LIST = {...INITIAL_ORDER_LIST};
+let TRACKING_RETURN = null;
 let SELECTED_TEAM_EMP_ID = "";
+const CLIENT_DIRECTORY = {query: "", branch: "", country: "", sort: "name", limit: 25};
+const FABRIC_DIRECTORY = {query: "", category: "", review: false, limit: 25};
 let GARMENT_WORKSPACE = null;
 let GARMENT_PRINT_SHEET = null;
 let SHARED_FORM_DIRTY = false;
 document.addEventListener("input", event => {
-  if (SHARED_MODE && event.target.closest("#main, #overlay")) SHARED_FORM_DIRTY = true;
+  if (SHARED_MODE && event.target.closest("#main, #overlay") && !event.target.closest("[data-tracking-controls]")) SHARED_FORM_DIRTY = true;
 });
 
 function garmentWorkspaceDirty() {
@@ -2988,17 +3139,43 @@ function go(name, params) {
       MREC = blankMeasure(firstClient ? firstClient.id : "");
     }
   }
-  $$("#nav button").forEach(b => b.classList.toggle("on",
-    b.dataset.v === name || (name === "client" && b.dataset.v === "clients") || (["garments", "garmentPrint"].includes(name) && b.dataset.v === "orders")
-  ));
+  const navView = name === "client" ? "clients" :
+    ["orderOverview", "garments", "garmentPrint"].includes(name) ? "orders" : name;
+  $$("#nav [data-v]").forEach(button => {
+    const current = button.dataset.v === navView;
+    button.classList.toggle("on", current);
+    if (current) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  setMoreNavigation(false);
+  $("#navMore").classList.toggle("on", Boolean($(`#navSecondary [aria-current="page"]`)));
   $("#actionbar").classList.toggle("on", name === "measure");
   updateNavCounts();
   renderSidebarBrandAndEmployees();
   render();
   window.scrollTo(0, 0);
+  $("#main h1")?.focus({preventScroll: true});
+  if (TRACKING_RETURN?.view === name) {
+    const {id, event, scroll} = TRACKING_RETURN;
+    TRACKING_RETURN = null;
+    $$("[data-open-tracked-order]").find(button => button.dataset.openTrackedOrder === id &&
+      button.dataset.trackingEvent === event)?.focus({preventScroll: true});
+    window.scrollTo(0, scroll);
+  }
 }
 
-$$("#nav button").forEach(b => b.onclick = () => go(b.dataset.v));
+function setMoreNavigation(open) {
+  $("#navSecondary").classList.toggle("is-open", open);
+  $("#navMore").setAttribute("aria-expanded", String(open));
+}
+$("#navMore").onclick = () => setMoreNavigation($("#navMore").getAttribute("aria-expanded") !== "true");
+$("#nav").addEventListener("keydown", event => {
+  if (event.key === "Escape" && $("#navMore").getAttribute("aria-expanded") === "true") {
+    setMoreNavigation(false);
+    $("#navMore").focus();
+  }
+});
+$$("#nav [data-v]").forEach(b => b.onclick = () => go(b.dataset.v));
 
 const sidebarLogoArea = $("#sidebarLogoArea");
 if (sidebarLogoArea) {
@@ -3034,6 +3211,7 @@ function render() {
   else if (VIEW.name === "clients") m.innerHTML = vClients();
   else if (VIEW.name === "client") m.innerHTML = vClient(VIEW.id);
   else if (VIEW.name === "orders") m.innerHTML = vOrders();
+  else if (VIEW.name === "orderOverview") m.innerHTML = vOrderOverview();
   else if (VIEW.name === "garments") { m.innerHTML = vGarmentJobs(); mountGarmentJobs(); }
   else if (VIEW.name === "garmentPrint") { m.innerHTML = vGarmentWorkshopSheet(); mountGarmentWorkshopSheet(); }
   else if (VIEW.name === "team") m.innerHTML = vTeam();
@@ -3050,8 +3228,84 @@ function render() {
     banner.textContent = DEMO_MODE ? "DEMO — sample records, stored separately from your workspace." : "Stored data could not be read. Saving is blocked to protect the original records.";
     m.prepend(banner);
   }
+  if (m.querySelector("h1")) m.querySelector("h1").tabIndex = -1;
   bindCommon();
   if (SHARED_MODE) globalThis.ModistoShared.renderControls();
+}
+
+function bindTracking() {
+  const openOrder = button => {
+    const id = button.dataset.openTrackedOrder;
+    const event = button.dataset.trackingEvent;
+    TRACKING_RETURN = {view: VIEW.name, id, event, scroll: window.scrollY};
+    go("orderOverview", {id, event, fromToday: VIEW.name === "dashboard", fromWorkshop: VIEW.name === "team",
+      fromClient: VIEW.name === "client" ? VIEW.id : ""});
+  };
+  const bindResults = () => {
+    $$("[data-open-tracked-order]").forEach(button => button.onclick = () => openOrder(button));
+    const loadMore = $("#orderLoadMore");
+    if (loadMore) loadMore.onclick = () => {
+      const previous = ORDER_LIST.limit;
+      ORDER_LIST.limit += ORDER_PAGE_SIZE;
+      updateResults();
+      $$("[data-open-tracked-order]")[previous]?.focus();
+    };
+  };
+  const updateResults = () => {
+    refreshTrackedResults();
+    bindResults();
+  };
+  if (VIEW.name === "dashboard") {
+    $("#todayBranch").onchange = event => {
+      TODAY_BRANCH = event.target.value;
+      render();
+      $("#todayBranch").focus({preventScroll: true});
+    };
+    $$("[data-today-view]").forEach(button => button.onclick = () => {
+      Object.assign(ORDER_LIST, {view: button.dataset.todayView, query: "", stage: "", branch: TODAY_BRANCH,
+        group: button.dataset.productionGroup || "", limit: ORDER_PAGE_SIZE, filtersOpen: false});
+      go("orders");
+      $("#orderSearch").focus({preventScroll: true});
+    });
+    bindResults();
+  }
+  if (VIEW.name === "team" || VIEW.name === "client") bindResults();
+  if (VIEW.name === "team") {
+    $$("[data-workshop-job]").forEach(button => button.onclick = () =>
+      inspectGarment(button.dataset.workshopOrder, button.dataset.workshopJob));
+  }
+  if (VIEW.name !== "orders") return;
+  $("#orderSearch").oninput = event => {
+    ORDER_LIST.query = event.target.value;
+    ORDER_LIST.limit = ORDER_PAGE_SIZE;
+    updateResults();
+  };
+  $("#orderFilters").ontoggle = event => { ORDER_LIST.filtersOpen = event.target.open; };
+  $("#orderBranch").onchange = event => {
+    Object.assign(ORDER_LIST, {branch: event.target.value, limit: ORDER_PAGE_SIZE, filtersOpen: true});
+    render();
+    $("#orderBranch").focus({preventScroll: true});
+  };
+  $("#orderStageFilter").onchange = event => {
+    const stage = event.target.value;
+    if (["Delivered", "Cancelled"].includes(stage)) ORDER_LIST.view = "all";
+    Object.assign(ORDER_LIST, {stage, group: "", limit: ORDER_PAGE_SIZE, filtersOpen: true});
+    render();
+    $("#orderStageFilter").focus({preventScroll: true});
+  };
+  $$("[data-order-view]").forEach(button => button.onclick = () => {
+    const view = button.dataset.orderView;
+    Object.assign(ORDER_LIST, {view, stage: "", group: "", limit: ORDER_PAGE_SIZE});
+    render();
+    $(`[data-order-view="${view}"]`)?.focus({preventScroll: true});
+  });
+  const clearGroup = $("#clearOrderGroup");
+  if (clearGroup) clearGroup.onclick = () => {
+    Object.assign(ORDER_LIST, {group: "", limit: ORDER_PAGE_SIZE});
+    render();
+    $("#orderStageFilter").focus({preventScroll: true});
+  };
+  updateResults();
 }
 
 function bindCommon() {
@@ -3079,78 +3333,29 @@ function bindCommon() {
     }
   });
 
-  // Client Directory Filters & Sorting
-  const refreshClientList = () => {
-    const q = $("#clientSearch")?.value || "";
-    const br = $("#clientBranchFilter")?.value || "";
-    const country = $("#clientCountryFilter")?.value || "";
-    const sortBy = $("#clientSortBy")?.value || "name";
-    if ($("#clientRows")) {
-      $("#clientRows").innerHTML = clientRows(q, br, country, sortBy);
-      bindCommon();
-    }
-  };
-  if ($("#clientSearch")) $("#clientSearch").oninput = refreshClientList;
-  if ($("#clientBranchFilter")) $("#clientBranchFilter").onchange = refreshClientList;
-  if ($("#clientCountryFilter")) $("#clientCountryFilter").onchange = refreshClientList;
-  if ($("#clientSortBy")) $("#clientSortBy").onchange = refreshClientList;
-
-  // Orders & Pipeline Filters + Clickable Top Stage Pills
-  const os = $("#orderSearch");
-  const osf = $("#orderStageFilter");
-  if (os) {
-    os.oninput = () => {
-      $("#orderRows").innerHTML = orderRows(os.value, ACTIVE_ORDER_STAGE_FILTER);
-      bindCommon();
-    };
-  }
-  if (osf) {
-    osf.onchange = () => {
-      ACTIVE_ORDER_STAGE_FILTER = osf.value;
-      render();
-    };
-  }
-  $$("[data-stage-pill]").forEach(pill => {
-    pill.onclick = () => {
-      const clickedStage = pill.dataset.stagePill;
-      ACTIVE_ORDER_STAGE_FILTER = (ACTIVE_ORDER_STAGE_FILTER === clickedStage) ? "" : clickedStage;
-      if (VIEW.name === "dashboard") {
-        go("orders");
-      } else {
-        render();
-      }
-    };
+  bindDirectory("client", CLIENT_DIRECTORY, clientRows, {
+    clientSearch: "query", clientBranchFilter: "branch", clientCountryFilter: "country", clientSortBy: "sort"
+  });
+  bindDirectory("swatch", FABRIC_DIRECTORY, swatchRows, {
+    swatchSearch: "query", swatchCatFilter: "category", swatchReview: "review"
   });
 
-  // Team Employee Click-to-View Jobs Drilldown
+  bindTracking();
+
+  $$("[data-order-section]").forEach(button => button.onclick = () => {
+    VIEW.section = button.dataset.orderSection;
+    render();
+    $(`[data-order-section="${VIEW.section}"]`).focus({preventScroll: true});
+  });
+
   $$("[data-select-emp]").forEach(el => {
     el.onclick = (e) => {
       e.stopPropagation();
-      const empId = el.dataset.selectEmp;
-      SELECTED_TEAM_EMP_ID = (SELECTED_TEAM_EMP_ID === empId) ? "" : empId;
+      SELECTED_TEAM_EMP_ID = el.dataset.selectEmp;
       render();
+      $("#workshopQueueHeading")?.focus();
     };
   });
-
-  // Inline Sequence Step Checkbox Toggle in Team/Order views
-  $$("[data-QuickStepOrder]").forEach(chk => {
-    chk.onchange = (e) => {
-      e.stopPropagation();
-      const ordId = chk.dataset.quicksteporder;
-      const stepIdx = parseInt(chk.dataset.quickstepidx, 10);
-      toggleOrderWorkflowStep(ordId, stepIdx, chk.checked);
-    };
-  });
-
-  // Swatch Filters
-  const sws = $("#swatchSearch");
-  const swc = $("#swatchCatFilter");
-  if (sws) {
-    sws.oninput = () => { $("#swatchRows").innerHTML = swatchRows(sws.value, swc ? swc.value : ""); bindCommon(); };
-  }
-  if (swc) {
-    swc.onchange = () => { $("#swatchRows").innerHTML = swatchRows(sws ? sws.value : "", swc.value); bindCommon(); };
-  }
 
   // Logo Upload Input in Settings
   const logoInput = $("#logoUploadInput");
@@ -3173,404 +3378,246 @@ function bindCommon() {
 /* ============================================================================
    1. DASHBOARD VIEW
    ============================================================================ */
-function vDashboard() {
-  const cl = Object.values(DB.clients);
-  const me = Object.values(DB.measurements);
-  const or = Object.values(DB.orders);
-  const sw = Object.values(DB.swatches);
-
-  const activeOrders = or.filter(o => !["Delivered","Cancelled"].includes(o.status));
-  let totalRevenue = 0, totalProfit = 0;
-  or.forEach(o => {
-    const ec = calcOrderEconomics(o);
-    totalRevenue += ec.quoted;
-    totalProfit += ec.profit;
-  });
-  const avgMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0.0";
-
-  // Check for any swatches with stock shortages or below minimum alert threshold
-  const reorderSwatches = sw.map(s => getSwatchAllocationStatus(s.code)).filter(a => a && a.needsReorder);
-  const delayedOrders = activeOrders.filter(o => (parseFloat(o.actualDays) || 0) > (parseFloat(o.estDays) || 14));
-
-  const stageCounts = {};
-  ORDER_STAGES.forEach(s => stageCounts[s] = 0);
-  or.forEach(o => { stageCounts[o.status] = (stageCounts[o.status] || 0) + 1; });
-
-  const recentM = me.slice().sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || "")).slice(0, 5);
-  const activeO = activeOrders.slice().sort((a, b) => (a.delivery || "9999").localeCompare(b.delivery || "9999")).slice(0, 6);
-
-  return `
-  <div class="pagehead">
-    <div>
-      <h1>Modisto Atelier Console</h1>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:-2px;">
-        Bespoke Client Database · Master Measurement Docket · Team Workload &amp; Timeline · Fabric Swatch Registry · Order Costing
-      </div>
-    </div>
-    <button class="btn" data-act="newClient">＋ New Client</button>
-    <button class="btn soft" data-act="openEnquiryWizard">✨ Multi-Garment Enquiry → Measure</button>
-    <button class="btn primary" data-act="newMeasurePick">📏 New Measurement Docket</button>
-  </div>
-
-  ${reorderSwatches.length ? `
-    <div class="shortage-banner" style="margin-bottom:14px;">
-      <div>
-        <b>🚨 FABRIC REORDER &amp; MINIMUM STOCK ALERT (${reorderSwatches.length}):</b>
-        ${reorderSwatches.map(a => `<div style="margin-top:2px;">• <b>${esc(a.swatch.code)} (${esc(a.swatch.colorName)})</b>: Stock <b>${a.stockMeters}m</b> (Min Alert: ${a.minStockMeters}m · Needed for Orders: ${a.requiredMeters}m) — <b>Place Order with Vendor: ${esc(a.swatch.vendorName || a.swatch.mill || "Supplier")} (${esc(a.swatch.vendorContact || "")})</b></div>`).join("")}
-      </div>
-      <button class="btn xs danger" data-go="swatches">Order Fabric / View Vendors →</button>
-    </div>
-  ` : ""}
-
-  <!-- CLICKABLE STAGE SEGMENT BAR (Click Trials, Cutting, Stitching, etc.) -->
-  <div class="card" style="padding:12px 16px;margin-bottom:14px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);">
-        🎯 WORKSHOP STAGE SEGMENTS — CLICK ANY STAGE (E.G. TRIALS, CUTTING, STITCHING) TO FILTER ORDERS
-      </span>
-      <button class="crumb" data-go="orders">Open Full Pipeline →</button>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      ${ORDER_FILTER_STAGES.map(s => `
-        <button type="button" class="stage-pill-btn" data-stage-pill="${esc(s)}">
-          <span class="badge ${stageBadgeClass(s)}">${esc(s)}</span>
-          <b style="font-size:15px;color:var(--navy);">${stageCounts[s] || 0}</b>
-        </button>
-      `).join("")}
-    </div>
-  </div>
-
-  <div class="stats">
-    <div class="stat">
-      <div class="num">${cl.length}</div>
-      <div class="lbl">Bespoke Clients</div>
-      <div class="sub">Mumbai &amp; London Patrons</div>
-    </div>
-    <div class="stat gold">
-      <div class="num">${me.length}</div>
-      <div class="lbl">Measurement Dockets</div>
-      <div class="sub">0.25" Quarter-Inch Precision</div>
-    </div>
-    <div class="stat">
-      <div class="num">${activeOrders.length}</div>
-      <div class="lbl">Orders in Pipeline</div>
-      <div class="sub">${delayedOrders.length} over estimated days</div>
-    </div>
-    <div class="stat">
-      <div class="num">${Object.keys(DB.employees || {}).length}</div>
-      <div class="lbl">Tailors &amp; Master Cutters</div>
-      <div class="sub"><button class="crumb" data-go="team">Click to View Jobs by Employee →</button></div>
-    </div>
-    <div class="stat green">
-      <div class="num">${fmtINR(totalProfit)}</div>
-      <div class="lbl">Net Atelier Profit</div>
-      <div class="sub">${avgMargin}% Avg Gross Margin (${fmtINR(totalRevenue)} Rev)</div>
-    </div>
-  </div>
-
-  <div class="duo">
-    <div class="card">
-      <div class="card-title">
-        <span>🧾 Orders in Workshop Pipeline</span>
-        <span class="spacer"><button class="crumb" data-go="orders">View All →</button></span>
-      </div>
-      ${activeO.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>Order / Client</th><th>Swatch # &amp; Garment</th><th>Trial Date &amp; Tailor</th><th>Stage &amp; Sequence</th></tr></thead>
-        <tbody>` + activeO.map(o => {
-          const clObj = DB.clients[o.clientId];
-          const wf = o.garmentJobs?.length ? o.garmentJobs.filter(job => !job.cancellation).flatMap(job => job.workflow) : o.workflow || [];
-          const doneCount = wf.filter(x => x.done).length;
-          return `<tr class="rowlink" data-act="openSequenceModal" data-id="${o.id}">
-            <td>
-              <b>${esc(o.orderNo)}</b><br>
-              <span style="color:var(--ink-soft);font-size:12px;">${esc(clObj ? clObj.name : "—")}</span>
-            </td>
-            <td>
-              ${renderSwatchBadge(o.swatchCode)}
-              <div style="font-size:12px;color:var(--ink-soft);margin-top:3px;">${esc(garmentOrderDescription(o))}</div>
-            </td>
-            <td style="font-size:12px;">
-              <div>✂ <b>${esc(o.assignedTo || "—")}</b></div>
-              <div style="color:var(--gold-strong);font-weight:600;font-size:11.5px;">📅 Trial: ${fmtDate(o.trialDate)}</div>
-            </td>
-            <td>
-              <span class="badge ${stageBadgeClass(o.status)}">${esc(o.status)}</span>
-              <div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">${o.garmentJobs?.length ? esc(garmentProgressText(o.garmentJobs)) : "✓ " + doneCount + "/" + wf.length + " steps done"}</div>
-            </td>
-          </tr>`;
-        }).join("") + `</tbody></table></div>` : `<div class="empty">No active orders in pipeline.</div>`}
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        <span>📏 Recent Measurement Dockets</span>
-        <span class="spacer"><button class="crumb" data-go="measure">Open Docket →</button></span>
-      </div>
-      ${recentM.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>Client</th><th>Order / Swatch</th><th>Posture / Stance</th><th>Date</th></tr></thead>
-        <tbody>` + recentM.map(m => {
-          const clObj = DB.clients[m.clientId];
-          const stance = m.ticks["Leg Stance"] || "Regular";
-          return `<tr class="rowlink" data-act="openMeasure" data-id="${m.id}">
-            <td>
-              <span class="cname">
-                <span class="avatar">${esc(initials(clObj && clObj.name))}</span>
-                <span>
-                  ${esc(clObj ? clObj.name : "—")}
-                  <div style="font-size:11.5px;color:var(--ink-soft);font-weight:400;">By ${esc(m.measuredBy || "—")}</div>
-                </span>
-              </span>
-            </td>
-            <td>
-              <b>${esc(m.orderNo || "")}</b><br>
-              ${m.swatchCode ? renderSwatchBadge(m.swatchCode) : ""}
-            </td>
-            <td>
-              <span class="badge">${esc(stance)}${m.texts?.bowLegInches ? ` (${esc(m.texts.bowLegInches)} ${esc(m.unit || "in")})` : ""}${m.texts?.knockKneesInches ? ` (${esc(m.texts.knockKneesInches)} ${esc(m.unit || "in")})` : ""}</span>
-            </td>
-            <td style="white-space:nowrap;font-size:12px;">${fmtDate(m.date)}</td>
-          </tr>`;
-        }).join("") + `</tbody></table></div>` : `<div class="empty">No measurements recorded yet.</div>`}
-    </div>
-  </div>
-  `;
+function trackingCalendar() {
+  const now = new Date();
+  const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+  const end = new Date(today + "T00:00:00Z");
+  end.setUTCDate(end.getUTCDate() + 6);
+  return {today, through: end.toISOString().slice(0, 10), zone: Intl.DateTimeFormat().resolvedOptions().timeZone};
 }
+
+function trackedOrders(calendar, branch) {
+  return Object.values(DB.orders)
+    .map(order => summarizeTrackedOrder(order, DB.clients[order.clientId], calendar.today, calendar.through))
+    .filter(item => !branch || item.branch === branch);
+}
+
+function branchOptions(selected) {
+  return [["", "All branches"], ["Mumbai", "Mumbai"], ["London", "London"], ["Unspecified", "Unspecified"]]
+    .map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("");
+}
+
+function trackedOrderButton(item, label, event) {
+  return `<button type="button" class="tracking-link" data-open-tracked-order="${esc(item.order.id)}"
+    ${event ? `data-tracking-event="${esc(event.key)}"` : ""}>${esc(label)}</button>`;
+}
+
+function trackingEventText(event) {
+  return [event.label, event.garment, fmtDate(event.date)].filter(Boolean).join(" · ");
+}
+
+function trackingAttentionSort(a, b) {
+  return a.reasons[0].priority - b.reasons[0].priority ||
+    (a.delivery || "9999").localeCompare(b.delivery || "9999");
+}
+
+function trackingEvents(items, predicate) {
+  return items.flatMap(item => item.events.filter(predicate).map(event => ({item, event})))
+    .sort((a, b) => a.event.date.localeCompare(b.event.date));
+}
+
+function trackingEventList(events) {
+  return `<ul class="tracking-queue">${events.map(({item, event}) => `<li>
+    ${trackedOrderButton(item, (item.client?.name || "Unknown client") + " · " + item.order.orderNo, event)}
+    <span>${esc(trackingEventText(event))}</span>
+  </li>`).join("")}</ul>`;
+}
+
+function vDashboard() {
+  const calendar = trackingCalendar();
+  const items = trackedOrders(calendar, TODAY_BRANCH);
+  const active = items.filter(item => item.active);
+  const attention = items.filter(item => item.reasons.length).sort(trackingAttentionSort);
+  const agenda = trackingEvents(items, event => event.date >= calendar.today);
+  const stocks = Object.values(DB.swatches).filter(swatch => fabricNeedsReview(swatch, getSwatchAllocationStatus(swatch.code))).length;
+  const metrics = [
+    ["active", "Active orders", active.length],
+    ["overdue", "Overdue deliveries", items.filter(item => item.overdue).length],
+    ["fittings", "Fittings in 7 days", items.reduce((count, item) => count + item.upcomingFittings.length, 0)],
+    ["ready", "Ready for collection", items.filter(item => item.collection).length]
+  ];
+  const stages = [...PRODUCTION_GROUPS.map(([label]) => label), "Other"]
+    .map(label => ({label, count: active.filter(item => item.stageGroup === label).length}))
+    .filter(stage => stage.count > 0);
+  return `<div class="tracking">
+    <div class="tracking-heading">
+      <div><h1>Today</h1><p>${esc(fmtDate(calendar.today))} · ${esc(calendar.zone)}</p></div>
+      <button type="button" class="btn primary" data-act="newOrderPick">New order</button>
+    </div>
+    <div class="tracking-controls" data-tracking-controls>
+      <label>Client branch <select id="todayBranch">${branchOptions(TODAY_BRANCH)}</select></label>
+      <details class="tracking-more"><summary>More actions</summary>
+        <button class="btn" data-act="newClient">New client</button>
+        <button class="btn" data-act="newMeasurePick">New measurements</button>
+        <button class="btn" data-act="openEnquiryWizard">New enquiry</button>
+      </details>
+    </div>
+    <div class="tracking-metrics">${metrics.map(([view, label, count]) => `
+      <button type="button" class="tracking-metric" data-today-view="${view}"><strong>${count}</strong><span>${label}</span></button>
+    `).join("")}</div>
+    <div class="tracking-columns">
+      <section class="card tracking-panel" aria-labelledby="attentionHeading">
+        <div class="tracking-panel-heading"><h2 id="attentionHeading">Needs attention</h2>
+          ${attention.length ? `<button class="tracking-link" data-today-view="attention">View all (${attention.length})</button>` : ""}</div>
+        ${attention.length ? `<ul class="tracking-queue">${attention.slice(0, 5).map(item => `<li>
+          ${trackedOrderButton(item, (item.client?.name || "Unknown client") + " · " + item.order.orderNo)}
+          <span class="${item.overdue ? "tracking-overdue" : ""}">${esc(trackingReason(item.reasons[0]))}${item.reasons.length > 1 ? ` · +${item.reasons.length - 1} more` : ""}</span>
+        </li>`).join("")}</ul>` : "<p>No orders need attention.</p>"}
+      </section>
+      <section class="card tracking-panel" aria-labelledby="agendaHeading">
+        <div class="tracking-panel-heading"><h2 id="agendaHeading">Coming next</h2>
+          ${agenda.length ? `<button class="tracking-link" data-today-view="agenda">View all (${agenda.length})</button>` : ""}</div>
+        ${agenda.length ? trackingEventList(agenda.slice(0, 5)) : "<p>No upcoming dates recorded.</p>"}
+      </section>
+    </div>
+    <section class="card tracking-panel" aria-labelledby="productionHeading">
+      <div class="tracking-panel-heading"><h2 id="productionHeading">Production overview</h2>
+        <button class="tracking-link" data-today-view="active">Open active orders</button></div>
+      ${stages.length ? `<div class="production-bars">${stages.map(({label, count}) => `
+        <button type="button" data-today-view="active" data-production-group="${esc(label)}">
+          <span>${esc(label)}</span><span class="production-track" aria-hidden="true"><span style="width:${count / active.length * 100}%"></span></span>
+          <strong aria-label="${count} orders">${count}</strong>
+        </button>`).join("")}</div>` : "<p>No active orders.</p>"}
+    </section>
+    ${stocks ? `<button class="tracking-link" data-act="openFabricReview">${stocks} fabrics need review · All branches</button>` : ""}
+  </div>`;
+}
+
 
 /* ============================================================================
    2. CLIENTS DIRECTORY & CLIENT PROFILE VIEW (With Company, Designation & City/Country Sort)
    ============================================================================ */
-function clientRows(q, branchFilter, countryFilter, sortBy) {
-  q = (q || "").toLowerCase();
-  const list = Object.values(DB.clients)
-    .filter(c => {
-      const matchQ = !q || (
-        c.name + " " +
-        (c.company || "") + " " +
-        (c.designation || "") + " " +
-        (c.phone || "") + " " +
-        (c.email || "") + " " +
-        (c.city || "") + " " +
-        (c.country || "") + " " +
-        (c.posture || "")
-      ).toLowerCase().includes(q);
-      const matchB = !branchFilter || (c.branch || "").includes(branchFilter);
-      const matchCountry = !countryFilter || (c.country || "India").toLowerCase() === countryFilter.toLowerCase();
-      return matchQ && matchB && matchCountry;
-    });
-
-  list.sort((a, b) => {
-    if (sortBy === "city") return (a.city || "").localeCompare(b.city || "") || a.name.localeCompare(b.name);
-    if (sortBy === "country") return (a.country || "").localeCompare(b.country || "") || (a.city || "").localeCompare(b.city || "");
-    if (sortBy === "company") return (a.company || "zzz").localeCompare(b.company || "zzz") || a.name.localeCompare(b.name);
-    if (sortBy === "spend") {
-      const sa = Object.values(DB.orders).filter(o => o.clientId === a.id).reduce((s, o) => s + (parseFloat(o.amount) || 0), 0);
-      const sb = Object.values(DB.orders).filter(o => o.clientId === b.id).reduce((s, o) => s + (parseFloat(o.amount) || 0), 0);
-      return sb - sa;
-    }
-    return a.name.localeCompare(b.name);
-  });
-
-  if (!list.length) {
-    return `<tr><td colspan="7"><div style="padding:18px;color:var(--ink-soft);font-style:italic;">No clients match your search criteria.</div></td></tr>`;
+function bindDirectory(prefix, state, renderRows, fields) {
+  const results = document.getElementById(prefix + "Rows");
+  if (!results) return;
+  const refresh = () => {
+    results.innerHTML = renderRows(state);
+    bindCommon();
+  };
+  for (const [id, field] of Object.entries(fields)) {
+    const control = document.getElementById(id);
+    control[control.type === "search" ? "oninput" : "onchange"] = () => {
+      state[field] = control.type === "checkbox" ? control.checked : control.value;
+      state.limit = 25;
+      refresh();
+    };
   }
-  return list.map(c => {
-    const nM = Object.values(DB.measurements).filter(m => m.clientId === c.id).length;
-    const clientOrders = Object.values(DB.orders).filter(o => o.clientId === c.id);
-    const totalSpend = clientOrders.reduce((s, o) => s + (parseFloat(o.amount) || 0), 0);
-    const age = ageFrom(c.birthday);
-    return `<tr class="rowlink" data-go="client|${c.id}">
-      <td>
-        <span class="cname">
-          <span class="avatar">${esc(initials(c.name))}</span>
-          <span>
-            ${esc(c.name)}
-            <div style="font-size:11.5px;color:var(--ink-soft);font-weight:400;">${esc(c.branch || "Mumbai · Andheri W")}${age != null ? ` · ${age} yrs` : ""}</div>
-          </span>
-        </span>
-      </td>
-      <td>
-        <b>${esc(c.company || "—")}</b>
-        <div style="font-size:11.5px;color:var(--gold-strong);font-weight:600;">${esc(c.designation || "")}</div>
-      </td>
-      <td>
-        <b>${esc(c.city || "—")}</b>
-        <div style="font-size:11.5px;color:var(--ink-soft);">${esc(c.country || "India")}</div>
-      </td>
-      <td>${esc(c.phone || "—")}<div style="font-size:11.5px;color:var(--ink-soft);">${esc(c.email || "")}</div></td>
-      <td style="max-width:200px;font-size:12px;color:var(--ink-soft);">${esc(c.posture || "Standard posture")}</td>
-      <td>
-        <b>${nM}</b> docket${nM === 1 ? "" : "s"} · <b>${clientOrders.length}</b> order${clientOrders.length === 1 ? "" : "s"}
-        <div style="color:var(--ink-soft);font-size:11.5px;">${fmtINR(totalSpend)}</div>
-      </td>
-      <td style="text-align:right;white-space:nowrap;">
-        <button class="btn sm soft" data-act="newOrder" data-id="${c.id}">＋ Order</button>
-        <button class="btn sm primary" data-act="measureFor" data-id="${c.id}">📏 Measure</button>
-      </td>
-    </tr>`;
-  }).join("");
+  const more = results.querySelector("[data-directory-more]");
+  if (more) more.onclick = () => {
+    const previous = state.limit;
+    state.limit += 25;
+    refresh();
+    results.querySelectorAll(".directory-card")[previous]?.querySelector("button, summary")?.focus();
+  };
+}
+
+function directoryResults(items, limit, singular, plural, card) {
+  if (!items.length) return `<p role="status">No matching ${plural}.</p>`;
+  return `<p class="tracking-count" role="status">${items.length} ${items.length === 1 ? singular : plural}</p>
+    <div class="directory-items">${items.slice(0, limit).map(card).join("")}</div>
+    ${items.length > limit ? '<button class="btn tracking-load" data-directory-more>Load more</button>' : ""}`;
+}
+
+function directoryFacts(facts) {
+  const recorded = facts.filter(([,value]) => value != null && value !== "");
+  return recorded.length ? `<dl>${recorded.map(([label,value]) =>
+    `<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`).join("")}</dl>` : "<p>No details recorded.</p>";
+}
+
+function clientRows({query, branch, country, sort, limit}) {
+  const activeCounts = new Map();
+  const quotes = new Map();
+  for (const order of Object.values(DB.orders)) {
+    const id = order.clientId;
+    if (!["Delivered", "Cancelled"].includes(order.status)) activeCounts.set(id, (activeCounts.get(id) || 0) + 1);
+    if (sort === "spend") quotes.set(id, (quotes.get(id) || 0) + (parseFloat(order.amount) || 0));
+  }
+  const q = query.trim().toLowerCase();
+  const list = Object.values(DB.clients).filter(client => {
+    const values = [client.name, client.company, client.designation, client.city, client.country, client.phone, client.email, client.posture];
+    return (!q || values.join(" ").toLowerCase().includes(q)) &&
+      (!branch || (client.branch || "").includes(branch)) &&
+      (!country || (client.country || "").toLowerCase() === country.toLowerCase());
+  }).sort((a, b) => {
+    const compare = sort === "spend" ? (quotes.get(b.id) || 0) - (quotes.get(a.id) || 0) :
+      sort === "name" ? 0 : (a[sort] || "").localeCompare(b[sort] || "");
+    return compare || a.name.localeCompare(b.name);
+  });
+  return directoryResults(list, limit, "client", "clients", client => {
+    const count = activeCounts.get(client.id) || 0;
+    return `<article class="card tracking-panel directory-card">
+      <h2><button class="tracking-link" data-go="client|${esc(client.id)}">${esc(client.name)}</button></h2>
+      <p>${esc(client.branch || "Branch unrecorded")} · ${count} active ${count === 1 ? "order" : "orders"}</p>
+    </article>`;
+  });
 }
 
 function vClients() {
-  const countries = Array.from(new Set(Object.values(DB.clients).map(c => c.country || "India").filter(Boolean))).sort();
-  return `
-  <div class="pagehead">
-    <h1>Client Database</h1>
-    <button class="btn primary" data-act="newClient">＋ Add New Client</button>
-  </div>
-  <div class="card">
-    <div class="searchrow">
-      <input id="clientSearch" type="text" placeholder="Search by client name, company, designation, city, country, phone, or posture…">
-      <select id="clientCountryFilter" aria-label="Filter by Country">
-        <option value="">All Countries</option>
-        ${countries.map(cn => `<option value="${esc(cn)}">${esc(cn)}</option>`).join("")}
-      </select>
-      <select id="clientBranchFilter" aria-label="Filter by Branch">
-        <option value="">All Branches</option>
-        <option value="Mumbai">Mumbai · Andheri West</option>
-        <option value="London">London · Northwood</option>
-      </select>
-      <select id="clientSortBy" aria-label="Sort Clients By">
-        <option value="name">Sort by: Client Name (A–Z)</option>
-        <option value="city">Sort by: City (A–Z)</option>
-        <option value="country">Sort by: Country (A–Z)</option>
-        <option value="company">Sort by: Company (A–Z)</option>
-        <option value="spend">Sort by: Highest Spend</option>
-      </select>
+  const {query, branch, country, sort} = CLIENT_DIRECTORY;
+  const countries = [...new Set(Object.values(DB.clients).map(c => c.country).filter(Boolean))].sort();
+  return `<div class="tracking">
+    <div class="tracking-heading"><h1>Clients</h1><button class="btn primary" data-act="newClient">New client</button></div>
+    <div class="tracking-controls" data-tracking-controls>
+      <label class="tracking-search">Search clients
+        <input type="search" id="clientSearch" placeholder="Name, company, phone or location" value="${esc(query)}">
+      </label>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Client</th>
-            <th>Company &amp; Designation</th>
-            <th>City &amp; Country</th>
-            <th>Contact</th>
-            <th>Posture &amp; Fit Profile</th>
-            <th>History</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="clientRows">${clientRows("", "", "", "name")}</tbody>
-      </table>
-    </div>
+    <details class="tracking-filters" data-tracking-controls ${branch || country || sort !== "name" ? "open" : ""}>
+      <summary>Filters</summary>
+      <div class="tracking-controls">
+        <label>Branch <select id="clientBranchFilter">
+          <option value="">All branches</option>${["Mumbai", "London"].map(name => `<option ${name === branch ? "selected" : ""}>${name}</option>`).join("")}
+        </select></label>
+        <label>Country <select id="clientCountryFilter">
+          <option value="">All countries</option>${countries.map(name => `<option ${name === country ? "selected" : ""}>${esc(name)}</option>`).join("")}
+        </select></label>
+        <label>Sort by <select id="clientSortBy">
+          ${[["name","Name"], ["city","City"], ["country","Country"], ["company","Company"], ["spend","Quoted order value"]]
+            .map(([value,label]) => `<option value="${value}" ${value === sort ? "selected" : ""}>${label}</option>`).join("")}
+        </select></label>
+      </div>
+    </details>
+    <div id="clientRows">${clientRows(CLIENT_DIRECTORY)}</div>
   </div>`;
 }
 
 function vClient(id) {
-  const c = DB.clients[id];
-  if (!c) return `<div class="card">Client not found. <button class="btn sm" data-go="clients">Back</button></div>`;
-  const ms = Object.values(DB.measurements).filter(m => m.clientId === id).sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
-  const os = Object.values(DB.orders).filter(o => o.clientId === id).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  const age = ageFrom(c.birthday);
-
-  return `
-  <div class="pagehead">
-    <button class="crumb" data-go="clients">← Back to Clients</button>
-  </div>
-  <div class="card">
-    <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;">
-      <span class="avatar" style="width:62px;height:62px;font-size:28px;margin:0;">${esc(initials(c.name))}</span>
-      <div style="flex:1;min-width:240px;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <h2 class="serif" style="font-size:30px;font-weight:700;color:var(--navy);">${esc(c.name)}</h2>
-          <span class="badge">${esc(c.branch || "Mumbai · Andheri W")}</span>
-          ${c.country ? `<span class="badge" style="background:#eef2f7;color:#1e3a8a;border-color:#cbd5e1;">🌍 ${esc(c.city ? c.city + ", " : "")}${esc(c.country)}</span>` : ""}
-        </div>
-        ${(c.company || c.designation) ? `
-          <div style="font-size:13.5px;font-weight:600;color:var(--gold-strong);margin-top:3px;">
-            🏢 ${esc(c.designation ? c.designation + (c.company ? " at " : "") : "")}${esc(c.company || "")}
-          </div>
-        ` : ""}
-        <div style="font-size:13px;color:var(--ink-soft);margin-top:4px;line-height:1.7;">
-          ${c.phone ? "📞 " + esc(c.phone) + " &nbsp;·&nbsp; " : ""}
-          ${c.email ? "✉ " + esc(c.email) + " &nbsp;·&nbsp; " : ""}
-          ${c.birthday ? "🎂 " + fmtDate(c.birthday) + (age != null ? " (" + age + " yrs)" : "") : ""}
-        </div>
-        ${c.address ? `<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">📍 ${esc(c.address)}</div>` : ""}
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn" data-act="editClient" data-id="${c.id}">✎ Edit Profile</button>
-        <button class="btn soft" data-act="newOrder" data-id="${c.id}">🧾 New Order &amp; Costing</button>
-        <button class="btn primary" data-act="measureFor" data-id="${c.id}">📏 New Measurement</button>
-      </div>
+  const client = DB.clients[id];
+  if (!client) return '<button class="btn" data-go="clients">Back to Clients</button><p>Client unavailable.</p>';
+  const dockets = Object.values(DB.measurements).filter(m => m.clientId === id)
+    .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
+  const orders = Object.values(DB.orders).filter(o => o.clientId === id)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const active = orders.filter(order => !["Delivered", "Cancelled"].includes(order.status));
+  const past = orders.filter(order => !active.includes(order));
+  const orderLinks = list => `<ul class="tracking-queue">${list.map(order => `<li>
+    ${trackedOrderButton({order}, order.orderNo || "Open order")}
+    <span>${esc(garmentOrderDescription(order))} · ${esc(order.status || "Stage unrecorded")}</span>
+  </li>`).join("")}</ul>`;
+  return `<div class="tracking client-profile">
+    <button class="tracking-link" data-go="clients">← Clients</button>
+    <div class="tracking-heading"><div><h1>${esc(client.name)}</h1><p>${esc(client.branch || "Branch unrecorded")}</p></div>
+      <button class="btn primary" data-act="newOrder" data-id="${esc(id)}">New order</button></div>
+    <div class="tracking-controls">
+      <button class="btn" data-act="measureFor" data-id="${esc(id)}">New measurement</button>
+      <button class="btn" data-act="editClient" data-id="${esc(id)}">Edit profile</button>
     </div>
-
-    <div class="grid3" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-      <div style="background:#faf7f0;padding:10px 13px;border-radius:8px;border:1px solid var(--line);">
-        <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:.8px;">Body Posture &amp; Stance</div>
-        <div style="font-size:13px;margin-top:3px;font-weight:500;">${esc(c.posture || "Standard / Regular Stance")}</div>
-      </div>
-      <div style="background:#faf7f0;padding:10px 13px;border-radius:8px;border:1px solid var(--line);">
-        <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:.8px;">Style Likes &amp; Preferences</div>
-        <div style="font-size:13px;margin-top:3px;">${esc(c.likes || "—")}</div>
-      </div>
-      <div style="background:#faf7f0;padding:10px 13px;border-radius:8px;border:1px solid var(--line);">
-        <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--gold);letter-spacing:.8px;">Master Cutter Remarks</div>
-        <div style="font-size:13px;margin-top:3px;">${esc(c.remarks || "—")}</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="duo">
-    <div class="card">
-      <div class="card-title">
-        <span>📏 Measurement History</span>
-        <span class="spacer">${ms.length} record${ms.length === 1 ? "" : "s"}</span>
-      </div>
-      ${ms.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>Date / Order</th><th>Swatch #</th><th>Key Specs</th><th>Cutter</th><th></th></tr></thead>
-        <tbody>` + ms.map(m => `
-        <tr class="rowlink" data-act="openMeasure" data-id="${m.id}">
-          <td>
-            <b>${fmtDate(m.date)}</b><br>
-            <span style="color:var(--ink-soft);font-size:11.5px;">${esc(m.orderNo || "")}</span>
-          </td>
-          <td>${renderSwatchBadge(m.swatchCode)}</td>
-          <td style="font-size:12px;">
-            <b>${Object.keys(m.measures).length} pts</b> (${esc(m.unit)})<br>
-            <span style="color:var(--ink-soft);">${esc(m.ticks["Leg Stance"] || "Regular")} · ${esc(m.ticks["Suit Style"] || "Suit")}</span>
-          </td>
-          <td style="font-size:12px;">${esc(m.measuredBy || "—")}</td>
-          <td style="text-align:right;white-space:nowrap;">
-            <button class="btn xs soft" data-act="dupMeasure" data-id="${m.id}">⧉ Copy New</button>
-          </td>
-        </tr>`).join("") + `</tbody></table></div>` : `<div style="color:var(--ink-soft);padding:12px 0;">No measurements on file yet.</div>`}
-    </div>
-
-    <div class="card">
-      <div class="card-title">
-        <span>🧾 Order &amp; Costing History</span>
-        <span class="spacer">${os.length} order${os.length === 1 ? "" : "s"}</span>
-      </div>
-      ${os.length ? `<div class="table-wrap"><table>
-        <thead><tr><th>Order</th><th>Garments &amp; Swatch</th><th>Stage</th><th>Financials</th><th></th></tr></thead>
-        <tbody>` + os.map(o => {
-          const ec = calcOrderEconomics(o);
-          return `<tr>
-            <td>
-              <b>${esc(o.orderNo)}</b><br>
-              <span style="color:var(--ink-soft);font-size:11.5px;">Due ${fmtDate(o.delivery)}</span>
-            </td>
-            <td>
-              <div style="font-weight:600;font-size:12.5px;">${esc(o.garments || "")}</div>
-              <div style="margin-top:3px;">${renderSwatchBadge(o.swatchCode)}</div>
-            </td>
-            <td>
-              <select data-stage="${o.id}" style="border:1px solid var(--line-2);border-radius:6px;padding:4px 6px;font-size:11.5px;font-weight:600;background:#faf7f0;" aria-label="Order Stage" ${o.garmentJobs?.length ? "disabled" : ""}>
-                ${(o.status === "Cancelled" ? ORDER_FILTER_STAGES : ORDER_STAGES).map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
-              </select>
-            </td>
-            <td style="white-space:nowrap;font-size:12px;">
-              <div>Price: <b>${fmtINR(ec.quoted)}</b></div>
-              <div style="color:var(--ink-soft);">Cost: ${fmtINR(ec.totalCost)} · <span style="color:var(--green);font-weight:600;">+${ec.marginPct.toFixed(0)}%</span></div>
-            </td>
-            <td style="text-align:right;">
-              <button class="btn xs" data-act="openGarments" data-id="${o.id}">Garment jobs</button>
-              <button class="btn xs" data-act="editOrder" data-id="${o.id}">✎ Costing</button>
-            </td>
-          </tr>`;
-        }).join("") + `</tbody></table></div>` : `<div style="color:var(--ink-soft);padding:12px 0;">No orders recorded yet.</div>`}
-    </div>
+    <section class="card tracking-panel"><h2>Active orders</h2>${active.length ? orderLinks(active) : "<p>No active orders.</p>"}</section>
+    <details class="card tracking-panel"><summary>Client details</summary>
+      ${directoryFacts([["Phone", client.phone], ["Email", client.email], ["Company", client.company], ["Designation", client.designation],
+        ["Address", client.address], ["City", client.city], ["Country", client.country], ["Birthday", trackingDate(client.birthday) ? fmtDate(client.birthday) : client.birthday],
+        ["Posture", client.posture], ["Style preferences", client.likes], ["Cutter remarks", client.remarks]])}
+    </details>
+    <details class="card tracking-panel"><summary>Measurements (${dockets.length})</summary>
+      ${dockets.length ? `<ul class="tracking-queue">${dockets.map(docket => `<li>
+        <button class="tracking-link" data-act="openMeasure" data-id="${esc(docket.id)}">${esc(docket.orderNo || "Open docket")}</button>
+        <span>${esc([trackingDate(docket.date) ? fmtDate(docket.date) : "Date unrecorded", docket.measuredBy, docket.unit, docket.swatchCode].filter(Boolean).join(" · "))}</span>
+        <div><button class="btn" data-act="dupMeasure" data-id="${esc(docket.id)}">Copy to new docket</button></div>
+      </li>`).join("")}</ul>` : "<p>No measurements recorded.</p>"}
+    </details>
+    <details class="card tracking-panel"><summary>Past orders (${past.length})</summary>
+      ${past.length ? orderLinks(past) : "<p>No past orders.</p>"}
+    </details>
   </div>`;
 }
 
@@ -3893,7 +3940,7 @@ function vMeasure() {
 
   const swatchOptionsHTML = (selectedCode) => {
     return `<option value="">— Select Swatch # —</option>` + allSwatches.map(s =>
-      `<option value="${esc(s.code)}" ${s.code === selectedCode ? "selected" : ""}>${esc(s.code)} · ${esc(s.colorName)} (${esc(s.book.split("·")[0].trim())} · Stock: ${s.stockMeters}m)</option>`
+      `<option value="${esc(s.code)}" ${s.code === selectedCode ? "selected" : ""}>${esc(s.code)} · ${esc(s.colorName)}${s.book ? " · " + esc(s.book.split("·")[0].trim()) : ""}${fabricStockRecorded(s) ? " · Stock " + esc(s.stockMeters) + " m" : ""}</option>`
     ).join("");
   };
 
@@ -3902,74 +3949,47 @@ function vMeasure() {
     ${c ? `<button class="crumb" data-go="client|${c.id}">← Back to ${esc(c.name)}</button>` : `<button class="crumb" data-go="clients">← Back to Clients</button>`}
 
     <h1 style="width:100%;margin-top:2px;">Measurements</h1>
+    <p id="measureContext">${esc(MREC.orderNo || "New docket")}</p>
   </div>
 
-  <!-- CLIENT, EMPLOYEE & CLICKABLE SWATCH DROPDOWN BAR -->
   <div class="clientbar">
     <span class="cell">
-      👤 Client:
+      Client
       <button type="button" class="btn sm" id="mClientSelect" aria-haspopup="dialog">
         Search clients${c ? " · " + esc(c.name) : ""}
       </button>
 
     </span>
+  </div>
+  <details class="card measurement-context no-print">
+    <summary id="docketDetailsLabel">Docket details${MREC.swatchCode ? " · " + esc(MREC.swatchCode) : ""}</summary>
+    <div class="clientbar">
     <span class="cell">
       Order ID:
       <input id="mOrderNo" value="${esc(MREC.orderNo)}" style="width:125px;" aria-label="Order ID" ${linkedOrder?.measurementId ? "readonly" : ""}>
 
     </span>
     <span class="cell">
-      📅 Date:
+      Date
       <input type="date" id="mDate" value="${esc(MREC.date)}" aria-label="Measurement Date">
     </span>
     <span class="cell">
-      Unit:
-      <select id="mUnit" aria-label="Measurement Unit">
-        <option value="in" ${MREC.unit === "in" ? "selected" : ""}>Inches (in)</option>
-        <option value="cm" ${MREC.unit === "cm" ? "selected" : ""}>Centimetres (cm)</option>
-      </select>
-    </span>
-    <span class="cell">
-      🧵 Primary Swatch #:
+      Primary swatch
       <button type="button" class="btn sm" id="mSwatchCode" aria-haspopup="dialog">
         Search swatches${MREC.swatchCode ? " · " + esc(primarySwatch?.code || MREC.swatchCode) : ""}
       </button>
     </span>
     <span class="cell">
-      ✂ Tailor / Measured By:
+      Measured by
       <select id="mBy" aria-label="Measured By Employee">
         <option value="">— Select measured by —</option>
         ${allEmployees.map(emp => `<option value="${esc(emp.name)}" ${emp.name === MREC.measuredBy ? "selected" : ""}>${esc(emp.name)} (${esc(emp.role.split(" ")[0])})</option>`).join("")}
         ${!allEmployees.some(e => e.name === MREC.measuredBy) && MREC.measuredBy ? `<option value="${esc(MREC.measuredBy)}" selected>${esc(MREC.measuredBy)}</option>` : ""}
       </select>
     </span>
-  </div>
-
-  <!-- LIVE LINKED ORDER & SEQUENCE STATUS BAR INSIDE MEASUREMENTS -->
-  <div class="card no-print" style="padding:10px 14px;margin-bottom:12px;background:#eef2f7;border:1px solid #cbd5e1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12.5px;">
-      <span style="font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.7px;">🔗 Linked Workshop Order:</span>
-      ${linkedOrder ? `
-        <span><b>${esc(linkedOrder.orderNo)}</b></span>
-        <span>Stage:
-          <b>${esc(linkedOrder.status)}</b>
-        </span>
-
-        <span>${linkedOrder.garmentJobs?.length ? esc(garmentProgressText(linkedOrder.garmentJobs)) : "✓ <b>" + (linkedOrder.workflow || []).filter(s => s.done).length + "/" + (linkedOrder.workflow || []).length + "</b> Steps Done"}</span>
-        <span style="color:var(--gold-strong);font-weight:700;">📅 Trial: ${fmtDate(linkedOrder.trialDate)}</span>
-        <span>🚚 Delivery: <b>${fmtDate(linkedOrder.delivery)}</b></span>
-      ` : `
-        <span style="color:var(--ink-soft);">Save the measurements, then choose Create order to review the order details.</span>
-      `}
     </div>
-    ${linkedOrder ? `
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">
-        <button type="button" class="btn xs" data-act="openGarments" data-id="${linkedOrder.id}">Garment jobs</button>
-        <button type="button" class="btn xs soft" data-act="openSequenceModal" data-id="${linkedOrder.id}">📋 Sequence &amp; Trial Dates</button>
-        <button type="button" class="btn xs" data-act="editOrder" data-id="${linkedOrder.id}">💰 Order Costing</button>
-      </div>
-    ` : ""}
-  </div>
+    ${linkedOrder ? `<button class="btn sm" data-act="viewLinkedOrder" data-id="${esc(linkedOrder.id)}">Open linked order</button>` : ""}
+  </details>
 
   <!-- WHAT ALL THE CLIENT WANTS — MULTI-GARMENT ORDER ENQUIRY SELECTOR -->
   <div class="card no-print" style="padding:12px 16px;margin-bottom:12px;background:#fffdf9;border:1.5px solid var(--gold-soft);">
@@ -3977,9 +3997,6 @@ function vMeasure() {
       <div>
         <span style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.9px;color:var(--gold-strong);">
           Garment sections
-        </span>
-        <span style="font-size:12px;color:var(--ink-soft);margin-left:6px;">
-          Choose sections for this docket. Cloth estimates are advisory; order quantities and allocations are managed in Orders.
         </span>
       </div>
       <span class="badge" id="selectedGarmentsSummaryBadge">
@@ -4054,13 +4071,21 @@ function vMeasure() {
   </div>
 
   <!-- SECTION TABS -->
-  <label class="measurement-view no-print" for="mViewMode">Measurement view
+  <div class="measurement-view no-print">
+  <label>Unit
+      <select id="mUnit" aria-label="Measurement Unit">
+        <option value="in" ${MREC.unit === "in" ? "selected" : ""}>Inches (in)</option>
+        <option value="cm" ${MREC.unit === "cm" ? "selected" : ""}>Centimetres (cm)</option>
+      </select>
+  </label>
+  <label for="mViewMode">Measurement view
     <select id="mViewMode">
       <option value="tabs">Tabbed</option>
       <option value="relevant">Relevant sections</option>
       <option value="all">All sections</option>
     </select>
   </label>
+  </div>
   <div class="tabs" id="mtabs">
     <button class="tab ${ACTIVE_MEASURE_TAB === "lower" ? "on" : ""}" data-p="lower">1. Lower Body (Trouser)</button>
     <button class="tab ${ACTIVE_MEASURE_TAB === "shirt" ? "on" : ""}" data-p="shirt">2. Shirt Measurements</button>
@@ -4612,11 +4637,16 @@ function mountMeasure() {
   });
 
   $("#mNotes").oninput = e => { MREC.notes = e.target.value; buildSummary(); };
-  $("#mOrderNo").oninput = e => { MREC.orderNo = e.target.value; buildSummary(); };
+  $("#mOrderNo").oninput = e => {
+    MREC.orderNo = e.target.value;
+    $("#measureContext").textContent = MREC.orderNo || "New docket";
+    buildSummary();
+  };
   $("#mDate").onchange = e => { MREC.date = e.target.value; buildSummary(); };
   $("#mSwatchCode").onclick = () => pickPrimarySwatch(code => {
     MREC.swatchCode = code;
     $("#mSwatchCode").textContent = code ? "Search swatches · " + code : "Search swatches";
+    $("#docketDetailsLabel").textContent = code ? "Docket details · " + code : "Docket details";
     updateLiveFabricEstimatorUI();
     buildSummary();
     markDirty();
@@ -4630,6 +4660,7 @@ function mountMeasure() {
       convertMeasurementUnit(MREC, e.target.value);
       LAST_FOCUSED_INPUT = null;
       render();
+      $("#mUnit").focus({preventScroll: true});
       toast("Numeric measurements converted to " + MREC.unit + ". Free-text notes retain their written units.");
     } catch (error) {
       e.target.value = MREC.unit;
@@ -4657,13 +4688,11 @@ function mountMeasure() {
 
   $("#mClientSelect").onclick = () => pickClientModal(id => {
     if (id === MREC.clientId) return;
-    leaveMeasurementDraft(() => {
-      const latest = Object.values(DB.measurements)
-        .filter(docket => docket.clientId === id)
-        .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""))[0];
-      if (latest) ACTIONS.openMeasure(latest.id);
-      else ACTIONS.measureFor(id);
-    });
+    const latest = Object.values(DB.measurements)
+      .filter(docket => docket.clientId === id)
+      .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""))[0];
+    if (latest) ACTIONS.openMeasure(latest.id);
+    else ACTIONS.measureFor(id);
   }, "Search clients", () => leaveMeasurementDraft(() => clientModal(null, true)));
   $("#mViewMode").onchange = event => {
     measureViewPreference = event.target.value;
@@ -4713,7 +4742,7 @@ function mountMeasure() {
   };
   $("#abCopyPrev").onclick = () => ACTIONS.copyPrev();
   $("#abClearAll").onclick = () => ACTIONS.clearMeasure();
-  $("#abNewMeasure").onclick = () => leaveMeasurementDraft(() => pickClientModal());
+  $("#abNewMeasure").onclick = () => pickClientModal();
   LAST_FOCUSED_INPUT = null;
   $$(".fraction-bar .fbtn").forEach(b => b.disabled = MREC.unit === "cm");
   $("#focusedFieldLabel").textContent = MREC.unit === "cm" ? "Metric entry: type decimals directly. Fraction buttons apply in inches." : "Focus a measurement, then choose a fraction.";
@@ -5058,72 +5087,47 @@ async function saveMeasure() {
 /* ============================================================================
    4. ORDERS & WORKSHOP PIPELINE VIEW (With Trial Date & Sequence of Events)
    ============================================================================ */
-function orderRows(q, stageFilter) {
-  q = (q || "").trim().toLowerCase();
-  const list = Object.values(DB.orders)
-    .map(o => Object.assign({ _c: DB.clients[o.clientId] }, o))
-    .filter(o => {
-      const matchQ = !q || orderSearchText(o,o._c).includes(q);
-      const matchS = !stageFilter || o.status === stageFilter;
-      return matchQ && matchS;
-    })
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-
-  if (!list.length) {
-    return `<tr><td colspan="9"><div style="padding:18px;color:var(--ink-soft);font-style:italic;">No orders match your filter${stageFilter ? ` for stage "${esc(stageFilter)}"` : ""}.</div></td></tr>`;
-  }
-  return list.map(o => {
-    const ec = calcOrderEconomics(o);
-    const isOverDays = ec.daysVariance > 0;
-    const progress = orderWorkflowSummary(o);
-    const timingRecorded = orderTimingRecorded(o);
-    return `<tr class="rowlink" data-act="openSequenceModal" data-id="${o.id}">
-      <td>
-        <b>${esc(o.orderNo)}</b>
-        <div style="font-size:11.5px;color:var(--ink-soft);">Booked: ${fmtDate(o.date)}</div>
-      </td>
-      <td>
-        <b>${esc(o._c ? o._c.name : "—")}</b>
-        <div style="font-size:11.5px;color:var(--ink-soft);">✂ ${esc(o.assignedTo || "Unassigned")}${o.karigarAssigned ? ` · 🧵 ${esc(o.karigarAssigned)}` : ""}</div>
-      </td>
-      <td>
-        <div style="font-weight:600;">${esc(garmentOrderDescription(o))}</div>
-        <div style="font-size:12px;">${o.garmentJobs?.length ? esc(garmentProgressText(o.garmentJobs)) : "Garment breakdown awaiting review"}</div>
-        ${o.commercialReviewRequired ? '<span class="badge">Fabric / payment review pending</span>' : ""}
-        <div style="font-size:11.5px;color:var(--ink-soft);">${esc(o.fabric || "")} (${esc(o.fabricMeters || 0)}m)</div>
-      </td>
-      <td>${renderSwatchBadge(o.swatchCode)}</td>
-      <td style="white-space:nowrap;font-size:12px;">
-        <div style="color:var(--gold-strong);font-weight:700;">📅 Trial: ${fmtDate(o.trialDate)}</div>
-        <div style="font-weight:600;">🚚 Due: ${fmtDate(o.delivery)}</div>
-        <div style="color:${isOverDays ? "var(--danger)" : "var(--green)"};font-weight:700;font-size:11px;">
-          ${timingRecorded ? `${ec.actualDays}d / ${ec.estDays}d est ${isOverDays ? `(+${ec.daysVariance}d)` : `(On time)`}` : "Timing not recorded"}
-        </div>
-      </td>
-      <td style="font-size:12px;">
-        <div style="font-weight:700;color:var(--navy);">✓ ${progress.done} of ${progress.total} steps recorded done</div>
-        <div style="font-size:11px;color:var(--ink-soft);">
-          ${esc(orderWorkflowNote(progress))}
-        </div>
-      </td>
-      <td onclick="event.stopPropagation()">
-        <select data-stage="${o.id}" style="border:1px solid var(--line-2);border-radius:6px;padding:5px 8px;font-size:12px;font-weight:600;background:#faf7f0;" aria-label="Stage" ${o.garmentJobs?.length ? "disabled" : ""}>
-          ${(o.status === "Cancelled" ? ORDER_FILTER_STAGES : ORDER_STAGES).map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}
-        </select>
-      </td>
-      <td style="white-space:nowrap;font-size:12px;">
-        <div>Quoted: <b>${fmtINR(ec.quoted)}</b></div>
-        <div style="color:var(--ink-soft);">Cost: ${fmtINR(ec.totalCost)} · <span style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};font-weight:700;">${fmtINR(ec.profit)}</span></div>
-      </td>
-      <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation()">
-        <button class="btn xs primary" data-act="openGarments" data-id="${o.id}">Garment jobs</button>
-        <button class="btn xs soft" data-act="openMeasureByOrder" data-id="${o.id}" title="Open Measurement Docket for this Order">📏 Docket</button>
-        <button class="btn xs primary" data-act="openSequenceModal" data-id="${o.id}">📋 Sequence &amp; Done</button>
-        <button class="btn xs" data-act="editOrder" data-id="${o.id}">✎ Edit</button>
-      </td>
-    </tr>`;
-  }).join("");
+function trackingReason(reason) {
+  return reason.date ? reason.text + " · " + fmtDate(reason.date) : reason.text;
 }
+
+function trackingGarments(item) {
+  if (!item.order.garmentJobs?.length) return "Breakdown needed";
+  if (!item.total) return "All garments cancelled";
+  return `${item.ready} ready · ${item.delivered} delivered · ${item.total} ${item.total === 1 ? "garment" : "garments"}`;
+}
+
+function orderRows(items, today) {
+  return `<div class="tracking-order-head" aria-hidden="true">
+    <span>Client / order</span><span>Garments</span><span>Stage</span><span>Next event</span><span>Delivery</span>
+  </div>
+  <ul class="tracking-orders">${items.map(item => {
+    const {order, client, delivery, nextEvent, reasons} = item;
+    const exception = reasons.find(reason => reason.text !== "Garment breakdown needed");
+    return `<li class="tracking-order" data-order-id="${esc(order.id)}">
+      <div class="tracking-identity">
+        ${trackedOrderButton(item, client?.name || "Unknown client")}
+        <span>${esc(order.orderNo || "")}</span>
+      </div>
+      <div class="tracking-garments">
+        <span class="tracking-description">${esc(garmentOrderDescription(order) || "No garment description")}</span>
+        <small>${esc(trackingGarments(item))}</small>
+      </div>
+      <div class="tracking-stage">
+        <span class="badge ${stageBadgeClass(order.status)}">${esc(order.status || "Stage unrecorded")}</span>
+        ${exception ? `<small class="tracking-exception ${item.overdue ? "tracking-overdue" : ""}">${esc(trackingReason(exception))}</small>` : ""}
+      </div>
+      <div class="tracking-next"><small class="tracking-mobile-label">Next</small>
+        ${nextEvent?.key === "delivery" ? "Delivery next" : nextEvent ? esc(trackingEventText(nextEvent)) : item.active ? "No upcoming date" : "—"}
+      </div>
+      <div class="tracking-due"><small class="tracking-mobile-label">Delivery</small>
+        ${delivery ? esc(fmtDate(delivery)) : "Not scheduled"}
+        ${item.active && delivery === today ? '<small>Due today</small>' : ""}
+      </div>
+    </li>`;
+  }).join("")}</ul>`;
+}
+
 
 function openGarmentWorkspace(orderId) {
   let latest;
@@ -5133,9 +5137,70 @@ function openGarmentWorkspace(orderId) {
   DB.orders = { ...DB.orders, [orderId]: order };
   GARMENT_WORKSPACE = {
     orderId, original: JSON.stringify(order), savedJobs: JSON.stringify(order.garmentJobs || []),
+    overview: VIEW.name === "orderOverview" ? {...VIEW} : null,
+    fromWorkshop: VIEW.name === "team",
     jobs: copyGarmentData(order.garmentJobs || []), versions: copyGarmentData(latest.measurementVersions || {})
   };
   go("garments", { id: orderId });
+}
+
+function inspectGarment(orderId, jobId) {
+  openGarmentWorkspace(orderId);
+  if (VIEW.name !== "garments" || GARMENT_WORKSPACE.orderId !== orderId) return;
+  const card = $$("[data-job-card]").find(element => element.dataset.jobCard === jobId);
+  const details = card?.querySelector(".garment-details");
+  if (details) {
+    details.open = true;
+    details.querySelector("summary").focus();
+  }
+}
+
+function editTrackedFitting(orderId, jobId, addFitting) {
+  openGarmentWorkspace(orderId);
+  if (VIEW.name !== "garments" || GARMENT_WORKSPACE.orderId !== orderId) return;
+  if (!GARMENT_WORKSPACE.jobs.some(job => job.id === jobId)) {
+    toast("That garment is no longer available.");
+    return;
+  }
+  garmentJobModal(jobId, {addFitting});
+}
+
+function orderReceivedSummary(order) {
+  const {quoted, received, balance, excess} = recordedOrderPayments(order);
+  const amount = value => value === null ? "Unrecorded" : fmtINR(value);
+  return `Order quote ${amount(quoted)} · Received total ${amount(received)} · Balance due ${amount(balance)}${excess > 0 ? " · Excess received " + amount(excess) : ""}`;
+}
+
+function orderAmendmentHistory(order) {
+  return `${(order.garmentRevisions || []).map(event =>
+    `<p>${esc(new Date(event.at).toLocaleString())} · ${esc(event.kind)} ${esc(event.label)} · ${esc(event.reason)}</p>`).join("")}
+    ${(order.commercialAdjustments || []).map(event =>
+      `<p>${esc(new Date(event.at).toLocaleString())} · ${event.confirmed ? "Review confirmed" : "Totals adjusted"} · ${esc(event.reason)}</p>
+      <ul>${Object.entries(event.changes).map(([field,change]) => `<li>${esc(ORDER_COMMERCIAL_FIELDS[field] || field)}: ${esc(change.before ?? "Unrecorded")} → ${esc(change.after ?? "Unrecorded")}</li>`).join("")}</ul>`).join("")}`;
+}
+
+function garmentTimeline(workflow, today) {
+  const next = (workflow || []).find(step => !step.done);
+  const fittings = (workflow || []).filter(isTrialWorkflowStep);
+  const upcoming = fittings.filter(step => !step.done && trackingDate(step.scheduledDate) >= today)
+    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))[0];
+  return {next, upcoming, fittings};
+}
+
+function workflowDisplayLabel(step) {
+  const label = (step.label || "Task").replace(/^\d+\.\s*/, "");
+  return isTrialWorkflowStep(step) ? label.replace(/\s+Done$/, "") : label;
+}
+
+function garmentWorkflowHistory(workflow) {
+  if (!workflow?.length) return "<p>No workflow recorded.</p>";
+  return `<ul>${workflow.map(step => `<li><b>${esc(workflowDisplayLabel(step))}</b> · ${step.done ? "Completed" : "Pending"}
+    ${trackingDate(step.scheduledDate) ? " · Scheduled " + esc(fmtDate(step.scheduledDate)) : ""}
+    ${isTrialWorkflowStep(step) && !step.done && !trackingDate(step.scheduledDate) ? " · Date not scheduled" : ""}
+    ${step.done && trackingDate(step.doneDate) ? " · Completed " + esc(fmtDate(step.doneDate)) : ""}
+    ${step.assignedTo ? " · " + esc(step.assignedTo) : ""}
+    ${step.notes ? `<p>${esc(step.notes)}</p>` : ""}
+  </li>`).join("")}</ul>`;
 }
 
 function vGarmentJobs() {
@@ -5143,57 +5208,69 @@ function vGarmentJobs() {
   const order = DB.orders[workspace.orderId];
   const jobs = workspace.jobs;
   const savedIds = new Set((order.garmentJobs || []).map(job => job.id));
-  const payments = recordedOrderPayments(order);
-  return `
-    <div class="pagehead">
-      <button class="crumb" data-go="orders">← Orders</button>
-      <h1>Garments · ${esc(order.orderNo)}</h1>
-    </div>
-    <div class="card">
-      <b>${esc(DB.clients[order.clientId]?.name || "Client")}</b>
-      <p>${order.garmentJobs?.length ? "Previous garment description" : "Recorded garments"} · ${esc(order.garments || "No garment description recorded")}</p>
-      <p>${jobs.length ? esc(garmentProgressText(jobs)) : "Review the description and add each garment before confirming the breakdown."}</p>
-      <p id="gjPaymentSummary">Order quote ${payments.quoted === null ? "Unrecorded" : fmtINR(payments.quoted)} · Received total ${payments.received === null ? "Unrecorded" : fmtINR(payments.received)} · Balance due ${payments.balance === null ? "Unrecorded" : fmtINR(payments.balance)}${payments.excess > 0 ? " · Excess received " + fmtINR(payments.excess) : ""}</p>
-      ${order.commercialReviewRequired ? '<p role="status"><b>Fabric / payment review pending.</b> Garment changes have not adjusted order totals or released reserved fabric.</p>' : ""}
-      ${order.productionBeforeGarmentJobs ? `<p>Previous order stage · ${esc(order.productionBeforeGarmentJobs.status)}</p>` : ""}
-      ${order.workflow?.length ? '<button class="btn sm" id="gjLegacy">View previous order workflow</button>' : ""}
-    </div>
-    <div class="garment-toolbar">
+  const dirty = garmentWorkspaceDirty();
+  const {today} = trackingCalendar();
+  return `<div class="tracking">
+    <button class="tracking-link" data-act="backFromGarments">← ${workspace.overview ? "Order overview" : workspace.fromWorkshop ? "Workshop" : "Orders"}</button>
+    <div class="tracking-heading">
+      <div><h1>Garments</h1><p>${esc(DB.clients[order.clientId]?.name || "Client")} · ${esc(order.orderNo)}</p></div>
       <button class="btn" id="gjAdd">Add garment jobs</button>
-      <button class="btn primary" id="gjSave" ${!garmentWorkspaceDirty() ? "disabled" : ""}>${savedIds.size ? "Save garment jobs" : "Confirm garment breakdown"}</button>
-      ${savedIds.size ? `<button class="btn" id="gjReview" ${garmentWorkspaceDirty() ? "disabled" : ""}>Review fabric &amp; payments</button>` : ""}
-      <span id="gjStatus" role="status" aria-live="polite">${garmentWorkspaceDirty() ? "Unsaved garment changes" : "Garment list saved"}</span>
     </div>
-    <div class="garment-grid">
+    <p>${jobs.length ? esc(garmentProgressText(jobs)) : esc(order.garments || "No garment description recorded")}</p>
+    ${order.commercialReviewRequired ? '<p role="status"><b>Fabric / payment review pending.</b> Review order totals and reserved fabric.</p>' : ""}
+    <div class="garment-toolbar">
+      <button class="btn primary" id="gjSave" ${dirty ? "" : "disabled"}>${savedIds.size ? "Save garment jobs" : "Confirm garment breakdown"}</button>
+      <span id="gjStatus" role="status" aria-live="polite">${dirty ? "Unsaved garment changes" : "Garment list saved"}</span>
+    </div>
+    <div class="tracking-jobs">
       ${jobs.map(job => {
         const version = workspace.versions[job.measurementVersionId];
         const fabric = getSwatchByCode(job.swatchCode);
-        return `<article class="card garment-card ${job.cancellation ? "is-cancelled" : ""}" data-job-card="${esc(job.id)}">
-          <div class="garment-heading"><b>${esc(job.label)}</b><span class="badge ${stageBadgeClass(job.cancellation ? "Cancelled" : job.status)}">${job.cancellation ? "Cancelled" : esc(job.status)}</span></div>
-          ${job.cancellation ? `<p><b>Cancellation reason:</b> ${esc(job.cancellation.reason)}<br>Stage retained: ${esc(job.status)} · ${esc(new Date(job.cancellation.at).toLocaleString())}</p>` : ""}
-          <p>${esc(GARMENT_JOB_TYPES[job.type]?.label || job.type)}${job.bundleLabel ? " · " + esc(job.bundleLabel) : ""} · Job ${esc(job.id)}</p>
-          <p>Fabric · ${esc(job.swatchCode || "Choose fabric")}${fabric?.colorName ? " · " + esc(fabric.colorName) : ""}</p>
-          <p>Maker · ${esc(job.maker || "Unassigned")}</p>
-          <p>Measurements · ${version ? esc(version.snapshot.orderNo || version.sourceMeasurementId) + " · " + fmtDate(version.snapshot.date) + " · " + esc(version.snapshot.unit || "in") : "Choose saved measurements"}</p>
-          <p>${(job.workflow || []).filter(step => step.done).length} of ${(job.workflow || []).length} tasks completed</p>
-          ${job.notes ? `<p>${esc(job.notes)}</p>` : ""}
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn sm" data-job-edit="${esc(job.id)}" ${job.cancellation ? "disabled" : ""}>Edit garment &amp; progress</button>
-            ${version ? `<button class="btn sm" data-job-copy="${esc(job.id)}">View measurement copy</button>` : ""}
-            <button class="btn sm" data-job-print="${esc(job.id)}" ${job.cancellation || !version || !savedIds.has(job.id) || garmentWorkspaceDirty() ? 'disabled title="Active saved garments with saved measurements can be printed"' : ""}>Workshop sheet</button>
-            ${savedIds.has(job.id) ? `<button class="btn sm ${job.cancellation ? "" : "danger"}" data-job-cancel="${esc(job.id)}" ${!job.cancellation && job.status === "Delivered" ? 'disabled title="Delivered garments require a return/refund review"' : ""}>${job.cancellation ? "Reinstate garment" : "Cancel garment"}</button>` : ""}
-            ${!savedIds.has(job.id) ? `<button class="btn sm danger" data-job-remove="${esc(job.id)}">Remove draft job</button>` : ""}
+        const {next, upcoming} = garmentTimeline(job.workflow, today);
+        const status = job.cancellation ? "Cancelled" : job.status;
+        const active = !["Cancelled", "Delivered"].includes(status);
+        return `<article class="card tracking-panel tracking-job garment-card ${job.cancellation ? "is-cancelled" : ""}" data-job-card="${esc(job.id)}">
+          <div class="tracking-panel-heading"><h2>${esc(job.label)}</h2><span class="badge ${stageBadgeClass(status)}">${esc(status)}</span></div>
+          <p>${esc(job.maker || "Maker unassigned")}</p>
+          ${active && upcoming ? `<p>Fitting · ${esc(fmtDate(upcoming.scheduledDate))}</p>` : ""}
+          ${active && next ? `<p>Pending task · ${esc(workflowDisplayLabel(next))}</p>` : ""}
+          ${active && (!job.swatchCode || !version) ? `<p>${!job.swatchCode ? "Choose fabric" : ""}${!job.swatchCode && !version ? " · " : ""}${!version ? "Choose saved measurements" : ""}</p>` : ""}
+          <div class="tracking-controls">
+            ${job.cancellation ? "" : `<button class="btn" data-job-edit="${esc(job.id)}">Edit garment &amp; progress</button>`}
+            <button class="btn" data-job-print="${esc(job.id)}" ${job.cancellation || !version || !savedIds.has(job.id) || dirty ? 'disabled title="Save an active garment with a measurement copy to print"' : ""}>Workshop sheet</button>
           </div>
-          ${job.history?.length ? `<details><summary>Activity (${job.history.length})</summary>
-            <ul>${job.history.map(event => `<li>${esc(new Date(event.at).toLocaleString())} · ${esc(event.kind || "Edited")} ${event.reason ? "· " + esc(event.reason) + " · " : "· "}${esc(event.before.status)} → ${esc(event.after.status)} · Maker ${esc(event.after.maker || "Unassigned")} · ${event.after.workflow.filter(step => step.done).length} tasks completed</li>`).join("")}</ul>
-          </details>` : ""}
+          <details class="garment-details"><summary>Garment details</summary>
+            ${job.cancellation ? `<p><b>Cancellation reason:</b> ${esc(job.cancellation.reason)} · Stage retained: ${esc(job.status)} · ${esc(new Date(job.cancellation.at).toLocaleString())}</p>` : ""}
+            <p>${esc(GARMENT_JOB_TYPES[job.type]?.label || job.type)}${job.bundleLabel ? " · " + esc(job.bundleLabel) : ""} · Job ${esc(job.id)}</p>
+            <p>Fabric · ${esc(job.swatchCode || "Unrecorded")}${fabric?.colorName ? " · " + esc(fabric.colorName) : ""}</p>
+            <p>Measurements · ${version ? esc(version.snapshot.orderNo || version.sourceMeasurementId) + " · " + fmtDate(version.snapshot.date) + " · " + esc(version.snapshot.unit || "in") : "Unrecorded"}</p>
+            ${job.notes ? `<p>${esc(job.notes)}</p>` : ""}
+            <div class="tracking-controls">
+              ${version ? `<button class="btn" data-job-copy="${esc(job.id)}">View measurement copy</button>` : ""}
+              ${savedIds.has(job.id) ? `<button class="btn ${job.cancellation ? "" : "danger"}" data-job-cancel="${esc(job.id)}" ${!job.cancellation && job.status === "Delivered" ? 'disabled title="Delivered garments require a return/refund review"' : ""}>${job.cancellation ? "Reinstate garment" : "Cancel garment"}</button>`
+                : `<button class="btn danger" data-job-remove="${esc(job.id)}">Remove draft job</button>`}
+            </div>
+            <details><summary>Task history</summary>${garmentWorkflowHistory(job.workflow)}</details>
+            ${job.history?.length ? `<details><summary>Activity (${job.history.length})</summary>
+              <ul>${job.history.map(event => `<li>${esc(new Date(event.at).toLocaleString())} · ${esc(event.kind || "Edited")} · ${esc(event.reason || "")}
+                ${esc(event.before.status)} → ${esc(event.after.status)} · Maker ${esc(event.after.maker || "Unassigned")}
+                ${event.before.measurementVersionId !== event.after.measurementVersionId ? `<p>Measurement copy · ${esc(event.before.measurementVersionId || "Unrecorded")} → ${esc(event.after.measurementVersionId || "Unrecorded")}</p>` : ""}
+              </li>`).join("")}</ul>
+            </details>` : ""}
+          </details>
         </article>`;
       }).join("")}
     </div>
-    ${(order.garmentRevisions?.length || order.commercialAdjustments?.length) ? `<details class="card" style="margin-top:14px;"><summary>Order amendment &amp; commercial review history</summary>
-      ${(order.garmentRevisions || []).map(event => `<p>${esc(new Date(event.at).toLocaleString())} · ${esc(event.kind)} ${esc(event.label)} · ${esc(event.reason)}</p>`).join("")}
-      ${(order.commercialAdjustments || []).map(event => `<p>${esc(new Date(event.at).toLocaleString())} · ${event.confirmed ? "Review confirmed" : "Totals adjusted"} · ${esc(event.reason)}</p><ul>${Object.entries(event.changes).map(([field,change]) => `<li>${esc(ORDER_COMMERCIAL_FIELDS[field] || field)}: ${esc(change.before ?? "Unrecorded")} → ${esc(change.after ?? "Unrecorded")}</li>`).join("")}</ul>`).join("")}
-    </details>` : ""}`;
+    <details class="card tracking-panel" id="gjCosts" ${order.commercialReviewRequired ? "open" : ""}><summary>Costs &amp; received</summary>
+      <p id="gjPaymentSummary">${esc(orderReceivedSummary(order))}</p>
+      ${savedIds.size ? `<button class="btn" id="gjReview" ${dirty ? "disabled" : ""}>Review fabric &amp; payments</button>` : ""}
+    </details>
+    ${order.workflow?.length || order.garmentRevisions?.length || order.commercialAdjustments?.length ? `<details class="card tracking-panel" id="gjHistory"><summary>Order history</summary>
+      ${order.garments ? `<p>Recorded garment description · ${esc(order.garments)}</p>` : ""}
+      ${order.workflow?.length ? '<button class="btn" id="gjLegacy">View previous order workflow</button>' : ""}
+      ${orderAmendmentHistory(order)}
+    </details>` : ""}
+  </div>`;
 }
 
 function garmentAssignmentFields(job = {}) {
@@ -5243,13 +5320,14 @@ function readGarmentAssignments(job = {}) {
   return { maker, swatchCode: swatch?.code || typedSwatch, measurementVersionId: versionId };
 }
 
-function garmentJobModal(jobId) {
+function garmentJobModal(jobId, {addFitting = false} = {}) {
   const workspace = GARMENT_WORKSPACE;
   const job = workspace.jobs.find(item => item.id === jobId);
   const editing = Boolean(job);
   if (job?.cancellation) { toast("Reinstate the garment before editing it."); return; }
+  if (addFitting && (!job || job.status === "Delivered")) { toast("This garment no longer has an active fitting."); return; }
   let draftWorkflow = copyGarmentData(job?.workflow || []);
-  const taskFields = () => draftWorkflow.map((step, index) => `
+  const taskFields = fitting => draftWorkflow.map((step, index) => isTrialWorkflowStep(step) !== fitting ? "" : `
     <div class="garment-task">
       <label><input type="checkbox" data-gj-done="${index}" ${step.done ? "checked" : ""}>${esc(step.label)}</label>
       ${isTrialWorkflowStep(step) ? `<label class="garment-task-date">Scheduled date<input type="date" data-gj-planned="${index}" aria-label="Scheduled date for ${esc(step.label)}" value="${esc(step.scheduledDate || "")}"></label>` : ""}
@@ -5273,9 +5351,12 @@ function garmentJobModal(jobId) {
         ${ORDER_STAGES.map(stage => `<option ${stage === job.status ? "selected" : ""}>${esc(stage)}</option>`).join("")}
       </select></div>
       <div class="field"><label for="gjNotes">Garment instructions</label><textarea id="gjNotes">${esc(job.notes || "")}</textarea></div>
-      <h3>Trials &amp; workshop progress</h3>
+      <h3>Fittings</h3>
       <button type="button" class="btn" id="gjAddTrial">＋ Add trial / fitting</button>
-      <div class="garment-tasks" id="gjTasks">${taskFields()}</div>` : "<p>Confirm the components, then save the garment list to start tracking them.</p>"}
+      <div class="garment-tasks" id="gjFittings">${taskFields(true)}</div>
+      <details class="garment-task-group"><summary>Workshop tasks</summary>
+        <div class="garment-tasks" id="gjTasks">${taskFields(false)}</div>
+      </details>` : "<p>Confirm the components, then save the garment list to start tracking them.</p>"}
     <p id="gjError" role="alert"></p>
     <div class="actions"><button class="btn" id="gjCancel">Cancel</button><button class="btn primary" id="gjApply">Apply to garment list</button></div>
   `);
@@ -5304,10 +5385,12 @@ function garmentJobModal(jobId) {
     if (ORDER_STAGES.indexOf($("#gjStage").value) >= ORDER_STAGES.indexOf("1st Trial / Fitting")) {
       $("#gjStage").value = "1st Trial / Fitting";
     }
-    $("#gjTasks").innerHTML = taskFields();
+    $("#gjFittings").innerHTML = taskFields(true);
+    $("#gjTasks").innerHTML = taskFields(false);
     const lastTrial = draftWorkflow.findLastIndex(isTrialWorkflowStep);
     $(`[data-gj-planned="${lastTrial}"]`).focus();
   };
+  if (addFitting) $("#gjAddTrial").click();
   $("#gjCancel").onclick = closeModal;
   $("#gjApply").onclick = () => {
     try {
@@ -5528,519 +5611,324 @@ function mountGarmentJobs() {
   };
 }
 
+const ORDER_LIST_VIEWS = {
+  active: "Active", attention: "Needs attention", ready: "Ready", all: "All",
+  overdue: "Overdue deliveries", fittings: "Fittings in 7 days", agenda: "Coming next"
+};
 function vOrders() {
-  const allOrders = Object.values(DB.orders);
-  const stageCounts = {};
-  ORDER_STAGES.forEach(s => stageCounts[s] = 0);
-  allOrders.forEach(o => {
-    stageCounts[o.status] = (stageCounts[o.status] || 0) + 1;
-  });
-
-  return `
-  <div class="pagehead">
-    <div>
-      <h1>Orders, Trial Dates &amp; Sequence Pipeline</h1>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:-2px;">
-        Click any stage segment (e.g. 1st Trial / Fitting, Cutting, Stitching) to filter, or click "📋 Sequence &amp; Done" to mark steps completed with dates
+  const {view, query, stage, branch, group} = ORDER_LIST;
+  const filtersOpen = stage || branch || group || ORDER_LIST.filtersOpen;
+  return `<div class="tracking">
+    <div class="tracking-heading">
+      <h1>Orders</h1>
+      <button class="btn primary" data-act="newOrderPick">New order</button>
+    </div>
+    <div class="tracking-controls" data-tracking-controls>
+      <label class="tracking-search">Search orders
+        <input type="search" id="orderSearch" placeholder="Client, order, garment, swatch or maker" value="${esc(query)}">
+      </label>
+      <details class="tracking-more"><summary>More actions</summary>
+        <button class="btn" data-act="openEnquiryWizard">New enquiry</button>
+      </details>
+    </div>
+    <div class="tracking-views" aria-label="Order views">
+      ${[...new Set(["active", "attention", "ready", "all", view])].map(key => `
+        <button class="btn" data-order-view="${key}" aria-pressed="${key === view}">${ORDER_LIST_VIEWS[key]}</button>
+      `).join("")}
+    </div>
+    <details class="tracking-filters" id="orderFilters" ${filtersOpen ? "open" : ""} data-tracking-controls>
+      <summary>Filters${[stage, branch, group].filter(Boolean).length ? ` (${[stage, branch, group].filter(Boolean).length})` : ""}</summary>
+      <div class="tracking-controls">
+        <label>Client branch <select id="orderBranch">${branchOptions(branch)}</select></label>
+        <label>Stage <select id="orderStageFilter">
+          <option value="">All stages</option>
+          ${ORDER_FILTER_STAGES.map(value => `<option ${value === stage ? "selected" : ""}>${esc(value)}</option>`).join("")}
+        </select></label>
+        ${group ? `<button class="btn" id="clearOrderGroup">Clear ${esc(group)} filter</button>` : ""}
       </div>
-    </div>
-    <button class="btn soft" data-act="openEnquiryWizard">✨ Multi-Garment Enquiry → Measure</button>
-    <button class="btn primary" data-act="newOrderPick">＋ Create New Bespoke Order</button>
-  </div>
+    </details>
+    <p id="orderResultCount" class="tracking-count" role="status"></p>
+    <section class="card tracking-results" aria-label="Order results" id="orderRows"></section>
+  </div>`;
+}
 
-  <!-- Interactive Clickable Stage Summary Pills (Point 4) -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-    <button type="button" class="stage-pill-btn ${ACTIVE_ORDER_STAGE_FILTER === "" ? "active" : ""}" data-stage-pill="">
-      <span style="font-size:12px;font-weight:700;">All Orders</span>
-      <b style="font-size:15px;color:var(--navy);">${allOrders.length}</b>
-    </button>
-    ${ORDER_FILTER_STAGES.map(s => `
-      <button type="button" class="stage-pill-btn ${ACTIVE_ORDER_STAGE_FILTER === s ? "active" : ""}" data-stage-pill="${esc(s)}">
-        <span class="badge ${stageBadgeClass(s)}">${esc(s)}</span>
-        <b style="font-size:15px;color:var(--navy);">${stageCounts[s] || 0}</b>
-      </button>
-    `).join("")}
-  </div>
+function refreshTrackedResults() {
+  const calendar = trackingCalendar();
+  const {view, query, stage, branch, group, limit} = ORDER_LIST;
+  let items = trackedOrders(calendar, branch).filter(item =>
+    (!stage || item.order.status === stage) && (!group || item.stageGroup === group) &&
+    orderSearchText(item.order, item.client).includes(query.trim().toLowerCase()));
+  switch (view) {
+    case "active": items = items.filter(item => item.active); break;
+    case "attention": items = items.filter(item => item.reasons.length).sort(trackingAttentionSort); break;
+    case "ready": items = items.filter(item => item.collection); break;
+    case "overdue": items = items.filter(item => item.overdue).sort(trackingAttentionSort); break;
+  }
+  if (view === "active" || view === "ready") {
+    items.sort((a, b) => (a.delivery || "9999").localeCompare(b.delivery || "9999"));
+  } else if (view === "all") {
+    items.sort((a, b) => (b.order.date || "").localeCompare(a.order.date || ""));
+  }
+  const eventView = view === "fittings" || view === "agenda";
+  const records = eventView ? trackingEvents(items, event => event.date >= calendar.today &&
+    (view === "agenda" || (event.date <= calendar.through && event.key !== "delivery"))) : items;
+  $("#orderResultCount").textContent = records.length + (eventView ? " events" : " orders");
+  const shown = records.slice(0, limit);
+  $("#orderRows").innerHTML = !shown.length ? '<p class="empty">No matches. Try another view or clear your filters.</p>' :
+    (eventView ? trackingEventList(shown) : orderRows(shown, calendar.today)) +
+    (records.length > limit ? '<button type="button" class="btn tracking-load" id="orderLoadMore">Load more</button>' : "");
+}
 
-  <div class="card">
-    <div class="searchrow">
-      <input id="orderSearch" type="text" placeholder="Search by Order #, client, garment, Swatch # (e.g. SW-1042), or tailor…">
-      <select id="orderStageFilter" aria-label="Filter by Order Stage">
-        <option value="">All Workshop Stages (${allOrders.length})</option>
-        ${ORDER_FILTER_STAGES.map(s => `<option value="${esc(s)}" ${ACTIVE_ORDER_STAGE_FILTER === s ? "selected" : ""}>${esc(s)} (${stageCounts[s] || 0})</option>`).join("")}
-      </select>
-      ${ACTIVE_ORDER_STAGE_FILTER ? `<button class="btn sm soft" data-stage-pill="">✕ Clear Stage Filter (${esc(ACTIVE_ORDER_STAGE_FILTER)})</button>` : ""}
+function orderFittingRows(order) {
+  const jobs = order.garmentJobs || [];
+  const sources = jobs.length ? jobs : [order];
+  return sources.map(source => {
+    const {fittings} = garmentTimeline(source.workflow, trackingCalendar().today);
+    const archived = source.cancellation || source.status === "Delivered" || order.status === "Cancelled" || order.status === "Delivered";
+    const pending = archived ? [] : fittings.filter(step => !step.done);
+    const history = archived ? fittings : fittings.filter(step => step.done);
+    return `<section class="card tracking-panel">
+      <h2>${esc(jobs.length ? source.label : "Order fittings")}</h2>
+      ${source.cancellation ? '<p>Garment cancelled</p>' : ""}
+      ${pending.length ? garmentWorkflowHistory(pending) : !archived ? '<p>No pending fitting recorded.</p>' : ""}
+      ${!jobs.length && !fittings.length && trackingDate(order.trialDate) ? `<p>Legacy fitting date · ${esc(fmtDate(order.trialDate))}</p>` : ""}
+      ${history.length ? `<details><summary>Fitting history (${history.length})</summary>${garmentWorkflowHistory(history)}</details>` : ""}
+      ${!archived && jobs.length ? `<div class="tracking-controls">
+        <button class="btn" data-act="addTrackedFitting" data-id="${esc(source.id)}" aria-label="Add fitting for ${esc(source.label)}">Add fitting</button>
+        ${pending.length ? `<button class="btn" data-act="openTrackedFitting" data-id="${esc(source.id)}" aria-label="Edit fittings for ${esc(source.label)}">Edit fittings</button>` : ""}
+      </div>` : ""}
+      ${!archived && !jobs.length ? `<button class="btn" data-act="openSequenceModal" data-id="${esc(order.id)}">Manage order fittings</button>` : ""}
+    </section>`;
+  }).join("");
+}
+
+function orderOverviewContent(item, section) {
+  const {order} = item;
+  const event = item.events.find(entry => entry.key === VIEW.event) || item.nextEvent;
+  const workflow = orderWorkflowSummary(order);
+  const hasJobs = Boolean(order.garmentJobs?.length);
+  const jobsButton = `<button class="btn primary" data-act="openGarments" data-id="${esc(order.id)}">${hasJobs ? "Garment jobs" : "Review garment breakdown"}</button>`;
+  if (section === "garments") return `<section class="card tracking-panel">
+    <div class="tracking-panel-heading"><h2>Garments</h2>${jobsButton}</div>
+    <p>${esc(garmentOrderDescription(order) || "No garment description")}</p>
+    <p>${esc(trackingGarments(item))}</p>
+    ${hasJobs ? `<ul class="tracking-queue">${order.garmentJobs.map(job => `<li>
+      <button class="tracking-link" data-act="inspectTrackedGarment" data-id="${esc(job.id)}">${esc(job.label)}</button>
+      <span>${esc(job.cancellation ? "Cancelled" : job.status)} · ${esc(job.maker || "Maker unassigned")}</span>
+    </li>`).join("")}</ul>` : ""}
+    <button class="btn" data-act="openMeasureByOrder" data-id="${esc(order.id)}">Measurement docket</button>
+  </section>`;
+  if (section === "fittings") return `<div class="tracking-jobs">${orderFittingRows(order)}</div>`;
+  if (section === "costs") return `<section class="card tracking-panel">
+    <h2>Costs &amp; received</h2>
+    <p>${esc(orderReceivedSummary(order))}</p>
+    ${order.commercialReviewRequired ? '<p role="status"><b>Fabric / payment review pending.</b></p>' : ""}
+    <button class="btn" data-act="editOrder" data-id="${esc(order.id)}">Review fabric &amp; payments</button>
+  </section>`;
+  if (section === "activity") return `<section class="card tracking-panel">
+    <h2>Activity</h2>
+    <p>${esc(orderWorkflowNote(workflow))}</p>
+    <details><summary>${hasJobs ? "Previous order workflow" : "Order workflow"}</summary>
+      ${order.productionBeforeGarmentJobs ? `<p>Previous stage · ${esc(order.productionBeforeGarmentJobs.status)}</p>` : ""}
+      ${garmentWorkflowHistory(order.workflow)}
+    </details>
+    ${hasJobs ? order.garmentJobs.map(job => `<details><summary>${esc(job.label)} task history</summary>${garmentWorkflowHistory(job.workflow)}</details>`).join("") : ""}
+    ${order.garmentRevisions?.length || order.commercialAdjustments?.length ? `<details><summary>Amendments and commercial reviews</summary>${orderAmendmentHistory(order)}</details>` : ""}
+  </section>`;
+  return `<div class="tracking-columns">
+    <section class="card tracking-panel">
+      <h2>Garments</h2><p>${esc(garmentOrderDescription(order) || "No garment description")}</p>
+      <p>${esc(trackingGarments(item))}</p>${jobsButton}
+    </section>
+    <section class="card tracking-panel">
+      <h2>${VIEW.event && event?.key === VIEW.event ? "Selected event" : "Next event"}</h2>
+      <p>${event ? esc(trackingEventText(event)) : "No upcoming date recorded."}</p>
+      ${event?.key === "delivery" ? "" : `<p>Delivery · ${item.delivery ? esc(fmtDate(item.delivery)) : "Not scheduled"}</p>`}
+      ${!hasJobs ? `<button class="btn" data-act="openSequenceModal" data-id="${esc(order.id)}">Timeline &amp; fittings</button>` : ""}
+      ${event?.jobId ? `<button class="btn" data-act="openTrackedFitting" data-id="${esc(event.jobId)}">Open garment fitting</button>` : ""}
+    </section>
+  </div>
+  ${item.reasons.length ? `<section class="card tracking-panel">
+    <h2>Needs attention</h2><ul>${item.reasons.map(reason => `<li>${esc(trackingReason(reason))}</li>`).join("")}</ul>
+  </section>` : ""}
+  <div class="tracking-controls">
+    <button class="btn" data-act="openMeasureByOrder" data-id="${esc(order.id)}">Measurement docket</button>
+    <button class="btn" data-act="editOrder" data-id="${esc(order.id)}">Edit order &amp; costing</button>
+  </div>
+  <details class="card tracking-panel">
+    <summary>Recorded workflow &amp; timing</summary>
+    <p>${esc(orderWorkflowNote(workflow))}</p>
+    ${workflow.total ? `<p>${workflow.done} of ${workflow.total} tasks recorded complete</p>` : ""}
+    <p>${orderTimingRecorded(order) ? `${esc(order.actualDays)} days recorded · ${esc(order.estDays)} days estimated` : "Timing not recorded"}</p>
+  </details>`;
+}
+
+function vOrderOverview() {
+  const order = DB.orders[VIEW.id];
+  if (!order) return '<button class="btn" data-go="orders">Back to Orders</button><p>Order unavailable.</p>';
+  const {today, through} = trackingCalendar();
+  const item = summarizeTrackedOrder(order, DB.clients[order.clientId], today, through);
+  const section = VIEW.section || "overview";
+  return `<div class="tracking tracking-overview">
+    <button class="tracking-link" data-go="${VIEW.fromToday ? "dashboard" : VIEW.fromWorkshop ? "team" : VIEW.fromClient ? "client|" + esc(VIEW.fromClient) : VIEW.fromMeasurement ? "measure" : "orders"}">← ${VIEW.fromToday ? "Today" : VIEW.fromWorkshop ? "Workshop" : VIEW.fromClient ? "Client" : VIEW.fromMeasurement ? "Measurements" : "Orders"}</button>
+    <div class="tracking-heading">
+      <div><h1 id="orderOverviewHeading" tabindex="-1">${esc(item.client?.name || "Unknown client")}</h1><p>${esc(order.orderNo)} · ${esc(item.branch)}</p></div>
+      <span class="badge ${stageBadgeClass(order.status)}">${esc(order.status || "Stage unrecorded")}</span>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Order #</th>
-            <th>Client &amp; Assigned Team</th>
-            <th>Garments &amp; Cloth</th>
-            <th>Swatch #</th>
-            <th>Trial &amp; Delivery Dates</th>
-            <th>Sequence Progress</th>
-            <th>Current Stage</th>
-            <th>Price / Cost / Profit</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="orderRows">${orderRows("", ACTIVE_ORDER_STAGE_FILTER)}</tbody>
-      </table>
+    <div class="tracking-views" role="group" aria-label="Order sections">
+      ${[["overview", "Overview"], ["garments", "Garments"], ["fittings", "Fittings"], ["costs", "Costs & received"], ["activity", "Activity"]].map(([key, label]) =>
+        `<button class="btn" data-order-section="${key}" aria-pressed="${key === section}">${esc(label)}</button>`).join("")}
     </div>
+    ${orderOverviewContent(item, section)}
   </div>`;
 }
 
 /* ============================================================================
    4B. TEAM WORKLOAD, CLICK-EMPLOYEE JOBS VIEW, TIMELINE & PAIN POINTS (Point 1)
    ============================================================================ */
+function workshopAssignments(employees, orders) {
+  const unassigned = {id: "", name: "Needs assignment", jobs: [], legacy: []};
+  const roster = employees.map(employee => ({...employee, jobs: [], legacy: []}));
+  const folded = value => (value || "").toLowerCase();
+  for (const order of orders) {
+    if (["Delivered", "Cancelled"].includes(order.status)) continue;
+    if (order.garmentJobs?.length) {
+      for (const job of order.garmentJobs) {
+        if (job.cancellation || job.status === "Delivered") continue;
+        const matches = roster.filter(employee => employee.name === job.maker);
+        for (const entry of matches.length ? matches : [unassigned]) entry.jobs.push({order, job});
+      }
+    } else {
+      const names = [order.assignedTo, order.karigarAssigned, ...(order.workflow || []).filter(step => !step.done).map(step => step.assignedTo)];
+      const matches = roster.filter(employee => names.some(name => name && folded(name) === folded(employee.name)));
+      for (const entry of matches.length ? matches : [unassigned]) entry.legacy.push(order);
+    }
+  }
+  return [unassigned, ...roster];
+}
+
+function workshopQueueRow(order, job, calendar) {
+  const client = DB.clients[order.clientId];
+  const {next, upcoming} = garmentTimeline((job || order).workflow, calendar.today);
+  const item = summarizeTrackedOrder(order, client, calendar.today, calendar.through);
+  const title = job?.label || order.garments || "Order";
+  const detail = [
+    next ? "Pending · " + workflowDisplayLabel(next) :
+      (job || order).workflow?.length ? "All recorded tasks complete" : "No workflow recorded",
+    upcoming ? "Fitting · " + fmtDate(upcoming.scheduledDate) :
+      !job && item.nextEvent?.key === "legacy-fitting" ? trackingEventText(item.nextEvent) : "",
+    item.delivery ? (item.overdue ? "Delivery overdue · " : "Delivery · ") + fmtDate(item.delivery) : ""
+  ].filter(Boolean);
+  return `<li ${job ? `data-team-garment="${esc(job.id)}"` : ""}>
+    ${job ? `<button class="tracking-link" data-workshop-job="${esc(job.id)}" data-workshop-order="${esc(order.id)}">${esc(title)}</button>`
+      : trackedOrderButton(item, title)}
+    <span>${esc(client?.name || "Unknown client")} · ${esc(order.orderNo)} · ${esc(job?.status || order.status)}</span>
+    <span>${esc(detail.join(" · "))}</span>
+  </li>`;
+}
+
 function vTeam() {
-  const employees = Object.values(DB.employees || {});
-  const orders = Object.values(DB.orders);
-  const activeOrders = orders.filter(o => !["Delivered","Cancelled"].includes(o.status));
-
-  // Compute workload stats per employee
-  const empStats = employees.map(emp => {
-    const assignedOrders = activeOrders.filter(o =>
-      !o.garmentJobs?.length && ((o.assignedTo || "").toLowerCase() === emp.name.toLowerCase() ||
-      (o.karigarAssigned || "").toLowerCase() === emp.name.toLowerCase() ||
-      (o.workflow || []).some(w => !w.done && (w.assignedTo || "").toLowerCase() === emp.name.toLowerCase()))
-    );
-    const garmentJobs = activeOrders.flatMap(order => (order.garmentJobs || [])
-      .filter(job => !job.cancellation && job.status !== "Delivered" && job.maker === emp.name)
-      .map(job => ({ order, job })));
-    const allHistoryOrders = orders.filter(o =>
-      (o.assignedTo || "").toLowerCase() === emp.name.toLowerCase() ||
-      (o.karigarAssigned || "").toLowerCase() === emp.name.toLowerCase() ||
-      (o.workflow || []).some(w => (w.assignedTo || "").toLowerCase() === emp.name.toLowerCase())
-    );
-    const totalEstHrs = assignedOrders.reduce((s, o) => s + (parseFloat(o.estHours) || 28), 0);
-    const totalActHrs = assignedOrders.reduce((s, o) => s + (parseFloat(o.hoursSpent) || 0), 0);
-    const totalEstDays = assignedOrders.reduce((s, o) => s + (parseFloat(o.estDays) || 14), 0);
-    const totalActDays = assignedOrders.reduce((s, o) => s + (parseFloat(o.actualDays) || 0), 0);
-    const delayedCount = assignedOrders.filter(o => (parseFloat(o.actualDays) || 0) > (parseFloat(o.estDays) || 14)).length;
-    const measurementsTaken = Object.values(DB.measurements).filter(m => (m.measuredBy || "").toLowerCase() === emp.name.toLowerCase()).length;
-
-    return {
-      emp,
-      assignedOrders,
-      allHistoryOrders,
-      garmentJobs,
-      jobCount: assignedOrders.length + garmentJobs.length,
-      totalEstHrs,
-      totalActHrs,
-      hrsDiff: totalActHrs - totalEstHrs,
-      totalEstDays,
-      totalActDays,
-      daysDiff: totalActDays - totalEstDays,
-      delayedCount,
-      measurementsTaken
-    };
-  });
-
-  const selectedStat = empStats.find(st => st.emp.id === SELECTED_TEAM_EMP_ID) || empStats[0] || null;
-  const totalDelayed = activeOrders.filter(o => (parseFloat(o.actualDays) || 0) > (parseFloat(o.estDays) || 14)).length;
-  const totalEstAllHrs = activeOrders.reduce((s, o) => s + (parseFloat(o.estHours) || 28), 0);
-  const totalActAllHrs = activeOrders.reduce((s, o) => s + (parseFloat(o.hoursSpent) || 0), 0);
-
-  return `
-  <div class="pagehead">
-    <div>
-      <h1>Team Workload, Jobs by Employee &amp; Task Timeline</h1>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:-2px;">
-        Click any Tailor / Employee below to inspect all jobs &amp; pending sequence tasks in their hands, trial dates, and estimated vs actual time
-      </div>
+  const calendar = trackingCalendar();
+  const entries = workshopAssignments(Object.values(DB.employees || {}), Object.values(DB.orders));
+  const selected = entries.find(entry => entry.id === SELECTED_TEAM_EMP_ID) || entries[0];
+  const maxJobs = Math.max(1, ...entries.map(entry => entry.jobs.length));
+  const due = item => trackingDate(item.delivery) || "9999";
+  const jobs = [...selected.jobs].sort((a, b) => due(a.order).localeCompare(due(b.order)));
+  const legacy = [...selected.legacy].sort((a, b) => due(a).localeCompare(due(b)));
+  const jobHeading = selected.id ? "Garment jobs assigned to " + selected.name : "Garments needing assignment";
+  return `<div class="tracking">
+    <div class="tracking-heading">
+      <h1 id="workshopHeading" tabindex="-1">Workshop</h1>
+      <button class="btn" data-act="newEmployee">Add team member</button>
     </div>
-    <button class="btn soft" data-act="newOrderPick">＋ Assign New Order</button>
-    <button class="btn primary" data-act="newEmployee">＋ Add Tailor / Employee</button>
-  </div>
-
-  <!-- QUICK EMPLOYEE SELECTOR PILLS -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-    ${empStats.map(st => {
-      const isSel = selectedStat && selectedStat.emp.id === st.emp.id;
-      return `
-        <button type="button" class="stage-pill-btn ${isSel ? "active" : ""}" data-select-emp="${esc(st.emp.id)}">
-          <span style="font-weight:700;">👤 ${esc(st.emp.name)}</span>
-          <span class="badge ${st.jobCount >= 3 ? "s-Cutting" : "s-Ready"}">${st.jobCount} Active Job${st.jobCount === 1 ? "" : "s"}</span>
-        </button>
-      `;
-    }).join("")}
-  </div>
-
-  <!-- DRILL-DOWN PANEL: JOBS AT HAND WITH THE SELECTED EMPLOYEE -->
-  ${selectedStat?.garmentJobs.length ? `
-    <div class="card">
-      <div class="card-title">Garment jobs assigned to ${esc(selectedStat.emp.name)}</div>
-      ${selectedStat.garmentJobs.map(({order, job}) => `<p data-team-garment="${esc(job.id)}">
-        <b>${esc(job.label)}</b> · ${esc(order.orderNo)} · ${esc(job.status)}
-        <button class="btn xs" data-act="openGarments" data-id="${order.id}">Open garment jobs</button>
-      </p>`).join("")}
-    </div>` : ""}
-  ${selectedStat ? `
-    <div class="card" style="border:2px solid var(--gold);background:#fffdf8;">
-      <div class="card-title" style="color:var(--navy);">
-        <span>🔍 JOBS &amp; WORKFLOW TASKS AT HAND WITH: <b style="color:var(--gold-strong);font-size:14px;">${esc(selectedStat.emp.name.toUpperCase())}</b> (${esc(selectedStat.emp.role)})</span>
-        <span class="spacer">${selectedStat.assignedOrders.length} Active Order${selectedStat.assignedOrders.length === 1 ? "" : "s"} · ${selectedStat.measurementsTaken} Dockets Measured</span>
-      </div>
-      ${selectedStat.assignedOrders.length ? `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Order # &amp; Client</th>
-                <th>Garments &amp; Swatch</th>
-                <th>Role on Job</th>
-                <th>Trial &amp; Due Date</th>
-                <th>Pending &amp; Completed Sequence Steps</th>
-                <th>Est vs Actual Days</th>
-                <th style="text-align:right;">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${selectedStat.assignedOrders.map(o => {
-                const c = DB.clients[o.clientId];
-                const ec = calcOrderEconomics(o);
-                const wf = o.workflow || [];
-                const empSteps = wf.filter(w => (w.assignedTo || "").toLowerCase() === selectedStat.emp.name.toLowerCase());
-                const nextPending = wf.find(w => !w.done);
-                const roleLabel = (o.assignedTo === selectedStat.emp.name && o.karigarAssigned === selectedStat.emp.name)
-                  ? "Master Cutter & Karigar"
-                  : (o.assignedTo === selectedStat.emp.name ? "Master Cutter / Tailor" : "Stitching Karigar");
-                return `
-                  <tr>
-                    <td>
-                      <b>${esc(o.orderNo)}</b>
-                      <div style="font-size:12px;color:var(--ink-soft);">${esc(c ? c.name : "—")}</div>
-                    </td>
-                    <td>
-                      <div style="font-weight:600;">${esc(o.garments)}</div>
-                      <div style="margin-top:3px;">${renderSwatchBadge(o.swatchCode)}</div>
-                    </td>
-                    <td>
-                      <span class="badge">${esc(roleLabel)}</span>
-                      <div style="margin-top:4px;"><span class="badge ${stageBadgeClass(o.status)}">Stage: ${esc(o.status)}</span></div>
-                    </td>
-                    <td style="font-size:12px;white-space:nowrap;">
-                      <div style="color:var(--gold-strong);font-weight:700;">📅 Trial: ${fmtDate(o.trialDate)}</div>
-                      <div>🚚 Due: <b>${fmtDate(o.delivery)}</b></div>
-                    </td>
-                    <td style="font-size:12px;max-width:300px;">
-                      ${nextPending ? `<div style="color:var(--amber);font-weight:700;margin-bottom:4px;">⏳ Next Pending: ${esc(nextPending.label)} (${esc(nextPending.assignedTo)})</div>` : `<div style="color:var(--green);font-weight:700;">✓ All steps done</div>`}
-                      <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                        ${empSteps.map(st => `
-                          <span style="font-size:10.5px;padding:2px 6px;border-radius:4px;border:1px solid ${st.done ? "#86efac" : "#e7cf9a"};background:${st.done ? "#e9f4ec" : "#fdf3e2"};">
-                            ${st.done ? `✓ ${esc(st.label.replace(/^\d+\.\s*/, ""))} (${fmtDate(st.doneDate)} · ${st.daysTaken || 1}d)` : `○ ${esc(st.label.replace(/^\d+\.\s*/, ""))}`}
-                          </span>
-                        `).join("")}
-                      </div>
-                    </td>
-                    <td style="font-size:12px;white-space:nowrap;">
-                      <div>Est: <b>${ec.estDays}d</b> · Actual: <b style="color:${ec.daysVariance > 0 ? "var(--danger)" : "var(--green)"};">${ec.actualDays}d</b></div>
-                      <div style="font-size:11px;color:var(--ink-soft);">${esc(o.painPointNote || "On schedule")}</div>
-                    </td>
-                    <td style="text-align:right;white-space:nowrap;">
-                      <button class="btn xs primary" data-act="openSequenceModal" data-id="${o.id}">📋 Sequence / Mark Done</button>
-                      <button class="btn xs" data-act="editOrder" data-id="${o.id}">✎ Edit</button>
-                    </td>
-                  </tr>
-                `;
-              }).join("")}
-            </tbody>
-          </table>
+    <section class="card tracking-panel">
+      <h2>Assignments</h2>
+      <div class="tracking-workload">${entries.map(entry => `
+        <button type="button" data-select-emp="${esc(entry.id)}" aria-pressed="${entry.id === selected.id}">
+          <span><b>${esc(entry.name)}</b>${entry.role ? `<small>${esc(entry.role)}</small>` : ""}</span>
+          <span class="production-track" aria-hidden="true"><span style="width:${entry.jobs.length / maxJobs * 100}%"></span></span>
+          <span><b>${entry.jobs.length} garments</b><small>${entry.legacy.length} legacy orders</small></span>
+        </button>`).join("")}</div>
+    </section>
+    <div class="tracking-columns">
+      <section class="card tracking-panel"><h2 id="workshopQueueHeading" tabindex="-1">${esc(jobHeading)}</h2>
+        ${jobs.length ? `<ul class="tracking-queue">${jobs.map(({order, job}) => workshopQueueRow(order, job, calendar)).join("")}</ul>` : "<p>No active garment jobs.</p>"}
+      </section>
+      <section class="card tracking-panel"><h2>Legacy orders · ${esc(selected.name)}</h2>
+        ${legacy.length ? `<ul class="tracking-queue">${legacy.map(order => workshopQueueRow(order, null, calendar)).join("")}</ul>` : "<p>No active legacy orders.</p>"}
+      </section>
+    </div>
+    <details class="card tracking-panel"><summary>Manage team</summary>
+      <div class="tracking-controls"><button class="btn" data-act="newOrderPick">New order</button></div>
+      <ul class="tracking-queue">${entries.filter(entry => entry.id).map(entry => `<li>
+        <b>${esc(entry.name)}</b><span>${esc(entry.role || "")}</span>
+        <div class="tracking-controls">
+          <button class="btn" data-act="editEmployee" data-id="${esc(entry.id)}">Edit</button>
+          <button class="btn danger" data-act="deleteEmployee" data-id="${esc(entry.id)}">Remove</button>
         </div>
-      ` : `<div class="empty">No active orders currently assigned to ${esc(selectedStat.emp.name)}.</div>`}
-    </div>
-  ` : ""}
-
-  <!-- EMPLOYEE WORKLOAD CARDS & ADD/REMOVE DIRECTORY -->
-  <div class="card">
-    <div class="card-title">
-      <span>👥 ALL TAILORS &amp; EMPLOYEES — CLICK ANY ROW TO INSPECT THEIR JOBS</span>
-      <span class="spacer">Click "🔍 View Jobs" on any employee to see their detailed queue above</span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Employee / Tailor</th>
-            <th>Role &amp; Specialisation</th>
-            <th>Active Jobs (Click to View)</th>
-            <th>Active Orders &amp; Current Stage</th>
-            <th>Est. vs Actual Days</th>
-            <th>Est. vs Actual Hours</th>
-            <th>Status / Pain Point</th>
-            <th style="text-align:right;">Manage</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${empStats.map(st => {
-            const e = st.emp;
-            const overloaded = st.jobCount >= 3 || st.delayedCount > 0;
-            const isSel = selectedStat && selectedStat.emp.id === e.id;
-            return `<tr class="rowlink" data-select-emp="${esc(e.id)}" style="${isSel ? "background:#faf3e3;" : ""}">
-              <td>
-                <span class="cname">
-                  <span class="avatar">${esc(initials(e.name))}</span>
-                  <span>
-                    <b>${esc(e.name)}</b>
-                    <div style="font-size:11.5px;color:var(--ink-soft);font-weight:400;">${esc(e.branch || "Mumbai")} · ${st.measurementsTaken} dockets measured</div>
-                  </span>
-                </span>
-              </td>
-              <td>
-                <div style="font-weight:600;color:var(--navy);">${esc(e.role)}</div>
-                <div style="font-size:11.5px;color:var(--ink-soft);">${esc(e.specialty || "Bespoke Tailoring")}</div>
-              </td>
-              <td>
-                <button type="button" class="btn xs ${isSel ? "primary" : "soft"}" data-select-emp="${esc(e.id)}">
-                  🔍 ${st.jobCount} Active Job${st.jobCount === 1 ? "" : "s"} — View
-                </button>
-              </td>
-              <td style="max-width:260px;">
-                ${st.assignedOrders.length ? st.assignedOrders.map(o => {
-                  const cl = DB.clients[o.clientId];
-                  return `<div style="font-size:11.5px;margin-bottom:3px;">
-                    <b>${esc(o.orderNo)}</b> (${esc(cl ? cl.name : "")}) — <span class="badge ${stageBadgeClass(o.status)}" style="font-size:10px;padding:1px 6px;">${esc(o.status)}</span>
-                  </div>`;
-                }).join("") : `<span style="color:var(--ink-soft);font-size:12px;">Available for new assignment</span>`}
-              </td>
-              <td style="white-space:nowrap;font-size:12px;">
-                <div>Est: <b>${st.totalEstDays} days</b></div>
-                <div>Actual: <b style="color:${st.daysDiff > 0 ? "var(--danger)" : "var(--green)"};">${st.totalActDays} days</b> (${st.daysDiff > 0 ? `+${st.daysDiff}d` : `${st.daysDiff}d`})</div>
-              </td>
-              <td style="white-space:nowrap;font-size:12px;">
-                <div>Est: <b>${st.totalEstHrs} hrs</b></div>
-                <div>Actual: <b style="color:${st.hrsDiff > 0 ? "var(--amber)" : "var(--green)"};">${st.totalActHrs} hrs</b> (${st.hrsDiff > 0 ? `+${st.hrsDiff}h` : `${st.hrsDiff}h`})</div>
-              </td>
-              <td>
-                ${overloaded
-                  ? `<span class="badge" style="background:var(--danger-bg);color:var(--danger);border-color:var(--danger);">⚠ Bottleneck (${st.delayedCount} delayed)</span>`
-                  : `<span class="badge s-Ready">✓ Smooth Flow</span>`
-                }
-              </td>
-              <td style="text-align:right;white-space:nowrap;" onclick="event.stopPropagation()">
-                <button class="btn xs" data-act="editEmployee" data-id="${e.id}">✎ Edit</button>
-                <button class="btn xs danger" data-act="deleteEmployee" data-id="${e.id}">🗑 Remove</button>
-              </td>
-            </tr>`;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- VISUAL ORDER TIMELINE & PAIN POINT DIAGNOSTIC TABLE -->
-  <div class="card">
-    <div class="card-title">
-      <span>⏱ WORKSHOP TIMELINE — ESTIMATED VS ACTUAL TIME &amp; PAIN POINTS</span>
-      <span class="spacer">Click any order to update days, hours, or stage assignment</span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Order &amp; Client</th>
-            <th>Garment &amp; Swatch</th>
-            <th>Cutter &amp; Karigar With Job</th>
-            <th>Current Stage</th>
-            <th style="min-width:210px;">Days Timeline (Est vs Actual)</th>
-            <th style="min-width:190px;">Craft Hours (Est vs Actual)</th>
-            <th>Identified Pain Point / Bottleneck Note</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${orders.map(o => {
-            const c = DB.clients[o.clientId];
-            const ec = calcOrderEconomics(o);
-            const dayPct = Math.min(100, Math.round((ec.actualDays / Math.max(1, ec.estDays * 1.4)) * 100));
-            const hrPct = Math.min(100, Math.round((ec.hours / Math.max(1, ec.estHours * 1.4)) * 100));
-            const isOverDays = ec.daysVariance > 0;
-            const isOverHrs = ec.hoursVariance > 0;
-            return `<tr class="rowlink" data-act="editOrder" data-id="${o.id}">
-              <td>
-                <b>${esc(o.orderNo)}</b>
-                <div style="font-size:11.5px;color:var(--ink-soft);">${esc(c ? c.name : "—")}</div>
-                <div style="font-size:11px;color:var(--ink-soft);">Due: ${fmtDate(o.delivery)}</div>
-              </td>
-              <td>
-                <div style="font-weight:600;font-size:12.5px;">${esc(o.garments)}</div>
-                <div style="margin-top:3px;">${renderSwatchBadge(o.swatchCode)}</div>
-              </td>
-              <td style="font-size:12px;">
-                <div>✂ Cutter: <b>${esc(o.assignedTo || "—")}</b></div>
-                <div style="color:var(--ink-soft);margin-top:2px;">🧵 Karigar: <b>${esc(o.karigarAssigned || "—")}</b></div>
-              </td>
-              <td><span class="badge ${stageBadgeClass(o.status)}">${esc(o.status)}</span></td>
-              <td>
-                <div style="display:flex;justify-content:space-between;font-size:11.5px;">
-                  <span>Est: <b>${ec.estDays}d</b> · Actual: <b>${ec.actualDays}d</b></span>
-                  <b style="color:${isOverDays ? "var(--danger)" : "var(--green)"};">
-                    ${isOverDays ? `+${ec.daysVariance}d Delay` : `${ec.daysVariance === 0 ? "Exact" : ec.daysVariance + "d Early"}`}
-                  </b>
-                </div>
-                <div class="tl-bar-wrap">
-                  <div class="tl-bar-fill" style="width:${dayPct}%;background:${isOverDays ? "var(--danger)" : "var(--green)"};"></div>
-                </div>
-              </td>
-              <td>
-                <div style="display:flex;justify-content:space-between;font-size:11.5px;">
-                  <span>Est: <b>${ec.estHours}h</b> · Actual: <b>${ec.hours}h</b></span>
-                  <b style="color:${isOverHrs ? "var(--amber)" : "var(--green)"};">
-                    ${isOverHrs ? `+${ec.hoursVariance}h Over` : `Within Est`}
-                  </b>
-                </div>
-                <div class="tl-bar-wrap">
-                  <div class="tl-bar-fill" style="width:${hrPct}%;background:${isOverHrs ? "var(--amber)" : "var(--gold)"};"></div>
-                </div>
-              </td>
-              <td style="max-width:250px;font-size:12px;color:${isOverDays ? "var(--danger)" : "var(--ink-soft)"};font-weight:${isOverDays ? "600" : "400"};">
-                ${esc(o.painPointNote || (isOverDays ? "Stage turnaround exceeded estimate" : "Proceeding on schedule"))}
-              </td>
-              <td style="text-align:right;">
-                <button class="btn xs" data-act="editOrder" data-id="${o.id}">✎ Update</button>
-              </td>
-            </tr>`;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  `;
+      </li>`).join("")}</ul>
+    </details>
+  </div>`;
 }
 
 /* ============================================================================
    5. FABRICS & SWATCH LIBRARY VIEW (With Min Stock Alert & Vendor Details)
    ============================================================================ */
-function swatchRows(q, catFilter) {
-  q = (q || "").toLowerCase();
-  const list = Object.values(DB.swatches)
-    .filter(s => {
-      const matchQ = !q || (s.code + " " + s.book + " " + s.colorName + " " + s.composition + " " + s.mill + " " + (s.vendorName || "") + " " + (s.notes || "")).toLowerCase().includes(q);
-      const matchC = !catFilter || s.category === catFilter;
-      return matchQ && matchC;
-    })
-    .sort((a, b) => a.code.localeCompare(b.code));
+function fabricStockRecorded(swatch) {
+  const raw = swatch.stockMeters;
+  return raw != null && String(raw).trim() !== "" && Number.isFinite(Number(raw)) && Number(raw) >= 0;
+}
 
-  if (!list.length) {
-    return `<tr><td colspan="9"><div style="padding:18px;color:var(--ink-soft);font-style:italic;">No fabric swatches match your search.</div></td></tr>`;
-  }
-  return list.map(s => {
-    const alloc = getSwatchAllocationStatus(s.code);
-    const isShort = alloc && alloc.isShort;
-    const belowMin = alloc && alloc.belowMin;
-    return `
-    <tr style="${(isShort || belowMin) ? "background:#fff5f5;" : ""}">
-      <td>
-        <span class="swatch-pill" style="font-size:12.5px;padding:4px 10px;">
-          <span class="swatch-dot" style="width:14px;height:14px;background:${esc(s.colorHex || "#1b2838")}"></span>
-          <b>${esc(s.code)}</b>
-        </span>
-      </td>
-      <td>
-        <b>${esc(s.book)}</b>
-        <div style="font-size:11.5px;color:var(--ink-soft);">${esc(s.mill || "")} · ${esc(s.category || "Suiting")}</div>
-      </td>
-      <td>
-        <div style="font-weight:700;color:var(--navy);">🏢 ${esc(s.vendorName || s.mill || "—")}</div>
-        <div style="font-size:11px;color:var(--ink-soft);">${esc(s.vendorContact || "—")}</div>
-      </td>
-      <td>
-        <div style="font-weight:600;">${esc(s.colorName)}</div>
-        <div style="font-size:11.5px;color:var(--ink-soft);">${esc(s.composition)}</div>
-      </td>
-      <td style="font-weight:600;color:var(--navy);">${fmtINR(s.costPerMeter)} / m</td>
-      <td style="white-space:nowrap;font-size:12px;">
-        <div>In Stock: <b style="color:${belowMin ? "var(--danger)" : "var(--navy)"};">${esc(s.stockMeters)} m</b></div>
-        <div style="font-size:11px;color:var(--gold-strong);">Min Alert: <b>${esc(s.minStockMeters ?? 10)} m</b></div>
-        <div style="font-size:11px;color:var(--ink-soft);">Orders Req: <b>${alloc ? alloc.requiredMeters : 0} m</b>${alloc && alloc.openOrderNos.length ? ` (${alloc.openOrderNos.join(", ")})` : ""}</div>
-      </td>
-      <td>
-        ${isShort
-          ? `<span class="badge" style="background:var(--danger-bg);color:var(--danger);border-color:var(--danger);font-weight:700;">
-               ⚠ SHORTAGE: Need ${alloc.requiredMeters}m vs ${alloc.stockMeters}m (-${alloc.shortage}m)
-             </span>`
-          : (belowMin
-            ? `<span class="badge" style="background:var(--amber-bg);color:var(--amber);border-color:#e7cf9a;font-weight:700;">
-                 🔔 BELOW MIN (${s.stockMeters}m &lt; ${s.minStockMeters}m) — Order from Vendor
-               </span>`
-            : `<span class="badge s-Ready">
-                 ✓ Sufficient (${alloc ? alloc.surplus : s.stockMeters}m free)
-               </span>`
-          )
-        }
-      </td>
-      <td style="max-width:190px;font-size:11.5px;color:var(--ink-soft);">${esc(s.notes || "—")}</td>
-      <td style="text-align:right;white-space:nowrap;">
-        <button class="btn sm" data-act="editSwatch" data-id="${s.id}">✎ Edit / Vendor</button>
-      </td>
-    </tr>
-  `;
-  }).join("");
+function fabricNeedsReview(swatch, stock) {
+  return !fabricStockRecorded(swatch) || Boolean(stock?.needsReorder);
+}
+
+function swatchRows({query, category, review, limit}) {
+  const q = query.trim().toLowerCase();
+  const swatches = Object.values(DB.swatches).filter(swatch =>
+    (!category || swatch.category === category) && (!q ||
+      [swatch.code, swatch.book, swatch.colorName, swatch.composition, swatch.mill, swatch.vendorName, swatch.notes]
+        .join(" ").toLowerCase().includes(q)))
+    .sort((a, b) => a.code.localeCompare(b.code))
+    .map(swatch => ({swatch, stock: getSwatchAllocationStatus(swatch.code)}))
+    .filter(({swatch, stock}) => !review || fabricNeedsReview(swatch, stock));
+  return directoryResults(swatches, limit, "swatch", "swatches", ({swatch: s, stock}) => {
+    const recorded = fabricStockRecorded(s);
+    const status = !recorded ? "Stock unrecorded" : stock?.isShort ? `${stock.shortage} m short` :
+      stock?.belowMin ? "Below minimum" : `${stock?.surplus ?? s.stockMeters} m available`;
+    const color = /^#(?:[\da-f]{3}|[\da-f]{6})$/i.test(s.colorHex || "") ? s.colorHex : "#8e8578";
+    return `<article class="card tracking-panel directory-card">
+      <div class="tracking-panel-heading"><h2><span class="fabric-sample" style="background:${color}" aria-hidden="true"></span> ${esc(s.code)}</h2>
+        <span class="badge ${!recorded || stock?.needsReorder ? "s-Cutting" : "s-Ready"}">${esc(status)}</span></div>
+      <p>${esc(s.colorName || "Shade unrecorded")}${s.category ? " · " + esc(s.category) : ""}</p>
+      <details><summary>Swatch details</summary>
+        ${directoryFacts([["Book", s.book], ["Mill", s.mill], ["Composition", s.composition], ["Supplier", s.vendorName],
+          ["Contact", s.vendorContact], ["Cost per metre", s.costPerMeter == null || String(s.costPerMeter).trim() === "" ? "" : fmtINR(s.costPerMeter)],
+          ["Recorded stock", recorded ? s.stockMeters + " m" : "Unrecorded"], ["Minimum stock", s.minStockMeters == null || s.minStockMeters === "" ? "" : s.minStockMeters + " m"],
+          ["Allocation calculation", stock ? stock.requiredMeters + " m required" : ""], ["Referenced orders", stock?.openOrderNos.filter(Boolean).join(", ")],
+          ["Notes", s.notes]])}
+        <button class="btn" data-act="editSwatch" data-id="${esc(s.id)}">Edit swatch</button>
+      </details>
+    </article>`;
+  });
 }
 
 function vSwatches() {
-  const reorderList = Object.values(DB.swatches).map(s => getSwatchAllocationStatus(s.code)).filter(a => a && a.needsReorder);
-
-  return `
-  <div class="pagehead">
-    <div>
-      <h1>Fabric &amp; Swatch Library, Minimum Qty Alert &amp; Vendor Directory</h1>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:-2px;">
-        Track Swatch #, Minimum Stock Alert thresholds, Order Allocations, and Vendor contact details for immediate reordering
-      </div>
+  const {query, category, review} = FABRIC_DIRECTORY;
+  const categories = [...new Set(["Suiting", "Shirting", "Ceremonial", "Trousering",
+    ...Object.values(DB.swatches).map(swatch => swatch.category).filter(Boolean)])].sort();
+  return `<div class="tracking">
+    <div class="tracking-heading"><h1>Fabrics</h1><button class="btn primary" data-act="newSwatch">New swatch</button></div>
+    <div class="tracking-controls" data-tracking-controls>
+      <label class="tracking-search">Search fabrics
+        <input type="search" id="swatchSearch" placeholder="Swatch code, shade, book, mill or supplier" value="${esc(query)}">
+      </label>
+      <label>Category <select id="swatchCatFilter"><option value="">All categories</option>
+        ${categories.map(name => `<option ${name === category ? "selected" : ""}>${esc(name)}</option>`).join("")}
+      </select></label>
+      <label class="tracking-checkbox"><input type="checkbox" id="swatchReview" ${review ? "checked" : ""}> Needs stock review</label>
     </div>
-    <button class="btn primary" data-act="newSwatch">＋ Add Fabric Swatch &amp; Vendor</button>
-  </div>
-
-  ${reorderList.length ? `
-    <div class="shortage-banner" style="margin-bottom:14px;">
-      <div>
-        <b>🚨 REORDER NOTIFICATION — ${reorderList.length} FABRIC SWATCH${reorderList.length === 1 ? " IS" : "ES ARE"} BELOW MINIMUM QTY OR SHORT ON STOCK:</b>
-        ${reorderList.map(a => `
-          <div style="margin-top:4px;">
-            • <b>${esc(a.swatch.code)} (${esc(a.swatch.colorName)})</b> —
-            Stock: <b>${a.stockMeters} m</b> | Min Alert Level: <b>${a.minStockMeters} m</b> | Committed to Orders: <b>${a.requiredMeters} m</b>
-            → <span style="color:var(--navy);background:#fff;padding:1px 7px;border-radius:4px;border:1px solid var(--danger);">
-              📞 Order from Vendor: <b>${esc(a.swatch.vendorName || a.swatch.mill || "Supplier")}</b> (${esc(a.swatch.vendorContact || "Contact on file")})
-            </span>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  ` : ""}
-
-  <div class="card">
-    <div class="searchrow">
-      <input id="swatchSearch" type="text" placeholder="Search by Swatch # (e.g. SW-1042, SW-3110), Vendor Name, Bunch Book, Mill, shade…">
-      <select id="swatchCatFilter" aria-label="Filter by Swatch Category">
-        <option value="">All Categories</option>
-        <option value="Suiting">Suiting</option>
-        <option value="Shirting">Shirting</option>
-        <option value="Ceremonial">Ceremonial / Sherwani</option>
-        <option value="Trousering">Trousering</option>
-      </select>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Swatch #</th>
-            <th>Bunch Book &amp; Mill</th>
-            <th>Vendor Name &amp; Contact</th>
-            <th>Shade &amp; Composition</th>
-            <th>Cost / Meter</th>
-            <th>Stock / Min Alert / Req</th>
-            <th>Reorder &amp; Stock Status</th>
-            <th>Tailor Notes</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="swatchRows">${swatchRows("", "")}</tbody>
-      </table>
-    </div>
+    <div id="swatchRows">${swatchRows(FABRIC_DIRECTORY)}</div>
   </div>`;
 }
 
@@ -6069,9 +5957,9 @@ function vCosting() {
   return `
   <div class="pagehead">
     <div>
-      <h1>Bespoke Costing &amp; Atelier Economics</h1>
+      <h1>Costing &amp; reports</h1>
       <div style="font-size:12.5px;color:var(--ink-soft);margin-top:-2px;">
-        Track cloth consumption, Master Cutter &amp; Karigar craft hours, trims, trial logistics, and net margin per garment
+        Estimates use recorded quotes and entered costs. Missing cost inputs contribute zero to these totals.
       </div>
     </div>
     <button class="btn primary" data-act="newOrderPick">＋ Log New Order Costing</button>
@@ -6080,7 +5968,7 @@ function vCosting() {
   <div class="stats">
     <div class="stat">
       <div class="num">${fmtINR(totRev)}</div>
-      <div class="lbl">Total Order Revenue</div>
+      <div class="lbl">Total quoted value</div>
       <div class="sub">Across ${orders.length} bespoke orders</div>
     </div>
     <div class="stat">
@@ -6095,12 +5983,12 @@ function vCosting() {
     </div>
     <div class="stat green">
       <div class="num">${fmtINR(totProfit)}</div>
-      <div class="lbl">Net Atelier Profit</div>
+      <div class="lbl">Estimated order contribution</div>
       <div class="sub">${overallMargin}% Gross Margin</div>
     </div>
     <div class="stat gold">
       <div class="num">${fmtINR(avgProfitPerHr)}/hr</div>
-      <div class="lbl">Profit per Atelier Hour</div>
+      <div class="lbl">Contribution per recorded hour</div>
       <div class="sub">Measures time-vs-return efficiency</div>
     </div>
   </div>
@@ -6121,7 +6009,7 @@ function vCosting() {
             <th>Trims &amp; Logistics</th>
             <th>Total Cost</th>
             <th>Client Price</th>
-            <th>Net Profit &amp; Margin</th>
+            <th>Estimated contribution &amp; margin</th>
             <th>Craft Hrs (Est vs Act)</th>
           </tr>
         </thead>
@@ -6175,10 +6063,10 @@ function vSettings() {
   const s = DB.settings;
   const allEmployees = Object.values(DB.employees || {});
   return `
-  <div class="pagehead"><h1>Settings, Custom Logo &amp; Cloud Sync</h1></div>
+  <div class="pagehead"><h1>Settings</h1></div>
   <div class="duo">
-    <div class="card">
-      <div class="card-title">🛡 Modisto Brand Logo &amp; Measurement Sheet Header</div>
+    <details class="card tracking-panel">
+      <summary>Branding, print defaults &amp; Sheets export</summary>
       <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">
         Upload your official Modisto logo to appear in the left sidebar and at the top of every printed measurement sheet page.
       </p>
@@ -6224,37 +6112,23 @@ function vSettings() {
           </select>
         </div>
         <div class="field full">
-          <label>Google Apps Script Web App URL (Optional Cloud Sync)</label>
+          <label>Google Sheets export URL (optional)</label>
           <input type="text" id="setUrl" value="${esc(s.appsScriptUrl || "")}" placeholder="${SHARED_MODE ? 'Disabled in local staging' : 'https://script.google.com/macros/s/…/exec'}" ${SHARED_MODE ? 'disabled' : ''}>
         </div>
       </div>
       <div style="margin-top:14px;">
         <button class="btn primary" data-act="saveSettings">💾 Save Branding &amp; Settings</button>
       </div>
-    </div>
+    </details>
 
     <div>
       <div class="card">
-        <div class="card-title">👥 Quick Employee / Tailor Roster</div>
-        <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;">
-          Employees listed here appear in the "Measured By" dropdown and Order Assignment selectors.
-        </p>
-        <div style="margin-bottom:10px;">
-          ${allEmployees.map(e => `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px;">
-              <span><b>${esc(e.name)}</b> · <span style="color:var(--ink-soft);">${esc(e.role)}</span></span>
-              <span>
-                <button class="btn xs" data-act="editEmployee" data-id="${e.id}">✎</button>
-                <button class="btn xs danger" data-act="deleteEmployee" data-id="${e.id}">🗑</button>
-              </span>
-            </div>
-          `).join("")}
-        </div>
-        <button class="btn sm soft" data-act="newEmployee">＋ Add Tailor / Employee</button>
+        <div class="card-title">Team roster</div>
+        <button class="btn" data-go="team">Open Workshop</button>
       </div>
 
       <div class="card">
-        <div class="card-title">🗄 Database Backup, Restore &amp; Sample Data</div>
+        <div class="card-title">Backup, restore &amp; demo</div>
         <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;">
           Export a full JSON snapshot of all Clients, Measurement Dockets, Employees, Fabric Swatches, and Order Costings.
         </p>
@@ -6274,17 +6148,45 @@ function vSettings() {
 /* ============================================================================
    MODALS (Client, Employee, Order + Costing + Timeline, Swatch, Pickers)
    ============================================================================ */
+let modalOpener = null;
 function openModal(html) {
   SHARED_FORM_DIRTY = false;
-  $("#modal").innerHTML = html;
+  const modal = $("#modal");
+  if (!$("#overlay").classList.contains("on")) modalOpener = document.activeElement;
+  modal.innerHTML = html;
+  const title = modal.querySelector("h2");
+  if (title) {
+    title.id ||= "modalTitle";
+    modal.setAttribute("aria-labelledby", title.id);
+  } else modal.removeAttribute("aria-labelledby");
   $("#overlay").classList.add("on");
+  modal.focus();
 }
 function closeModal() {
   SHARED_FORM_DIRTY = false;
   $("#overlay").classList.remove("on");
+  modalOpener?.focus({preventScroll: true});
+  modalOpener = null;
 }
 $("#overlay").addEventListener("click", e => {
   if (e.target.id === "overlay") closeModal();
+});
+$("#modal").addEventListener("keydown", event => {
+  if (event.defaultPrevented) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeModal();
+  }
+  if (event.key !== "Tab") return;
+  const controls = $$("#modal :is(button, input, textarea, select, a[href], summary, [tabindex])")
+    .filter(control => !control.disabled && control.tabIndex >= 0 && control.getClientRects().length);
+  const first = controls[0];
+  const last = controls.at(-1);
+  const active = document.activeElement;
+  if (!controls.includes(active) || (event.shiftKey ? active === first : active === last)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first)?.focus();
+  }
 });
 
 function clientModal(c, startMeasureOnSave = false) {
@@ -6705,7 +6607,7 @@ function orderModal(o, clientId, sourceDocket = null) {
     $("#liveCostSummary").innerHTML = `
       <span>Cloth Cost: <b>${fmtINR(ec.fabricTotal)}</b></span>
       <span>Total Cost: <b>${fmtINR(ec.totalCost)}</b></span>
-      <span>Net Profit: <b style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};">${fmtINR(ec.profit)} (${ec.marginPct.toFixed(1)}%)</b></span>
+      <span>Estimated contribution <b style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};">${fmtINR(ec.profit)} (${ec.marginPct.toFixed(1)}%)</b></span>
       <span>Time Variance: <b style="color:${ec.daysVariance > 0 ? "var(--danger)" : "var(--green)"};">${!orderTimingRecorded(temp) ? "Timing not recorded" : ec.daysVariance > 0 ? `+${ec.daysVariance}d over est` : `On time`}</b></span>
       <span>Balance Due: <b>${recordedOrderPayments(temp).balance === null ? "Unrecorded" : fmtINR(ec.balance)}</b></span>
     `;
@@ -7350,7 +7252,7 @@ function swatchModal(s) {
 function searchPicker(title, placeholder, choices, onPick, extra) {
   const opener = document.activeElement;
   openModal(`
-    <div role="dialog" aria-labelledby="pickTitle">
+    <div>
       <h2 id="pickTitle">${esc(title)}</h2>
       <input class="picker-search" id="pickSearch" type="search" aria-label="${esc(placeholder)}" placeholder="${esc(placeholder)}">
       <div class="picker-results" id="pickList"></div>
@@ -7395,7 +7297,8 @@ function searchPicker(title, placeholder, choices, onPick, extra) {
   if (extra) $("#pickExtra").onclick = () => { dismiss(); extra.run(); };
 }
 
-function pickClientModal(onPick = ACTIONS.measureFor, title = "New measurement docket", onNew = () => clientModal(null, true)) {
+function pickClientModal(onPick = ACTIONS.measureFor, title = "New measurement docket",
+    onNew = () => leaveMeasurementDraft(() => clientModal(null, true))) {
   const choices = Object.values(DB.clients)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(client => ({
@@ -7419,7 +7322,7 @@ function pickPrimarySwatch(onPick) {
 }
 
 function leaveMeasurementDraft(openNext) {
-  if (measurementBaselines.get(MREC) !== JSON.stringify(MREC)) {
+  if (MREC && measurementBaselines.get(MREC) !== JSON.stringify(MREC)) {
     confirmDialog("Unsaved measurements", "Save your current docket first to keep your edits.", "Discard and continue", openNext);
     return;
   }
@@ -7462,21 +7365,38 @@ const ACTIONS = {
     } catch (error) { toast(error.message); }
   },
   openGarments(id) { openGarmentWorkspace(id); },
+  viewLinkedOrder(id) { go("orderOverview", {id, fromMeasurement: true}); },
+  openFabricReview() {
+    Object.assign(FABRIC_DIRECTORY, {query: "", category: "", review: true, limit: 25});
+    go("swatches");
+  },
+  backFromGarments() {
+    const overview = GARMENT_WORKSPACE?.overview;
+    go(overview ? "orderOverview" : GARMENT_WORKSPACE?.fromWorkshop ? "team" : "orders", overview);
+  },
+  inspectTrackedGarment(jobId) { inspectGarment(VIEW.id, jobId); },
+  openTrackedFitting(jobId) { editTrackedFitting(VIEW.id, jobId, false); },
+  addTrackedFitting(jobId) { editTrackedFitting(VIEW.id, jobId, true); },
   openSequenceModal(id) { sequenceModal(id); },
   openEnquiryWizard() { enquiryWizardModal(); },
   newSwatch() { swatchModal(null); },
   editSwatch(id) { swatchModal(DB.swatches[id]); },
   newMeasurePick() { pickClientModal(); },
   measureFor(id) {
-    ACTIVE_MEASURE_TAB = "lower";
-    MREC = blankMeasure(id);
-    go("measure");
+    leaveMeasurementDraft(() => {
+      ACTIVE_MEASURE_TAB = "lower";
+      MREC = blankMeasure(id);
+      go("measure");
+    });
   },
   openMeasure(id) {
     if (DB.measurements[id]) {
-      ACTIVE_MEASURE_TAB = "lower";
-      MREC = JSON.parse(JSON.stringify(DB.measurements[id]));
-      go("measure");
+      if (MREC?.id === id) { go("measure"); return; }
+      leaveMeasurementDraft(() => {
+        ACTIVE_MEASURE_TAB = "lower";
+        MREC = JSON.parse(JSON.stringify(DB.measurements[id]));
+        go("measure");
+      });
     }
   },
   openMeasureByOrder(orderId) {
@@ -7497,22 +7417,28 @@ const ACTIONS = {
       m.estGarmentType = o.garments || "2-Piece Bespoke Suit";
       m.selectedGarments = [];
     }
-    ACTIVE_MEASURE_TAB = "lower";
-    MREC = JSON.parse(JSON.stringify(m));
-    go("measure");
+    const open = () => {
+      ACTIVE_MEASURE_TAB = "lower";
+      MREC = JSON.parse(JSON.stringify(m));
+      go("measure");
+    };
+    if (MREC?.id === m.id) go("measure");
+    else leaveMeasurementDraft(open);
   },
   dupMeasure(id) {
     const src = DB.measurements[id];
     if (!src) return;
-    ACTIVE_MEASURE_TAB = "lower";
-    MREC = blankMeasure(src.clientId);
-    MREC.measures = JSON.parse(JSON.stringify(src.measures || {}));
-    MREC.ticks = JSON.parse(JSON.stringify(src.ticks || {}));
-    MREC.texts = JSON.parse(JSON.stringify(src.texts || {}));
-    MREC.swatchCode = src.swatchCode || "";
-    MREC.unit = src.unit || "in";
-    go("measure");
-    toast("Created new docket copied from " + fmtDate(src.date));
+    leaveMeasurementDraft(() => {
+      ACTIVE_MEASURE_TAB = "lower";
+      MREC = blankMeasure(src.clientId);
+      MREC.measures = JSON.parse(JSON.stringify(src.measures || {}));
+      MREC.ticks = JSON.parse(JSON.stringify(src.ticks || {}));
+      MREC.texts = JSON.parse(JSON.stringify(src.texts || {}));
+      MREC.swatchCode = src.swatchCode || "";
+      MREC.unit = src.unit || "in";
+      go("measure");
+      toast("Created new docket copied from " + fmtDate(src.date));
+    });
   },
   copyPrev() {
     const prev = Object.values(DB.measurements)
@@ -7641,7 +7567,23 @@ try {
     globalThis.ModistoShared.boot({
       normalize: normalizeDatabase, openModal, closeModal,
       activate(data) { DB = data; MREC = null; GARMENT_WORKSPACE = null; GARMENT_PRINT_SHEET = null; SHARED_FORM_DIRTY = false; renderSidebarBrandAndEmployees(); go("dashboard"); },
-      clear() { DB = emptyDatabase(); MREC = null; GARMENT_WORKSPACE = null; GARMENT_PRINT_SHEET = null; SHARED_FORM_DIRTY = false; $("#main").replaceChildren(); renderSidebarBrandAndEmployees(); document.body.classList.remove("garment-print-mode"); window.onbeforeprint = null; },
+      clear() {
+        DB = emptyDatabase();
+        MREC = null;
+        GARMENT_WORKSPACE = null;
+        GARMENT_PRINT_SHEET = null;
+        SHARED_FORM_DIRTY = false;
+        Object.assign(ORDER_LIST, INITIAL_ORDER_LIST);
+        TODAY_BRANCH = "";
+        SELECTED_TEAM_EMP_ID = "";
+        Object.assign(CLIENT_DIRECTORY, {query: "", branch: "", country: "", sort: "name", limit: 25});
+        Object.assign(FABRIC_DIRECTORY, {query: "", category: "", review: false, limit: 25});
+        TRACKING_RETURN = null;
+        $("#main").replaceChildren();
+        renderSidebarBrandAndEmployees();
+        document.body.classList.remove("garment-print-mode");
+        window.onbeforeprint = null;
+      },
       saved() { SHARED_FORM_DIRTY = false; },
       dirty() { return Boolean(( $("#overlay").classList.contains("on") && SHARED_FORM_DIRTY ) || garmentWorkspaceDirty() || (VIEW.name === "measure" && MREC && measurementBaselines.get(MREC) !== JSON.stringify(MREC))); }
     }).catch(error => { document.body.classList.add("shared-locked"); document.getElementById("sharedRoot").textContent = "Local staging could not start: " + error.message; });

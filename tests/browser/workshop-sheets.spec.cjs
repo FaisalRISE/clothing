@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 async function openJobs(page) {
   await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('[data-act="openGarments"][data-id="o_3"]').click();
 }
 

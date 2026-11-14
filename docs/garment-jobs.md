@@ -1,10 +1,12 @@
 # Garment jobs
 
-Open **Orders → Garment jobs** for an order. Review its recorded description, add individual garments or two/three-piece suit bundles, and choose **Confirm garment breakdown**. A suit and two shirts create a jacket, trousers and two shirt jobs. Each physical garment receives a stable job ID.
+Open an order from **Orders**, then choose **Review garment breakdown** or **Garment jobs**. Review its recorded description, add individual garments or suit bundles, and choose **Confirm garment breakdown**. A suit and two shirts create a jacket, trousers and two shirt jobs. Each physical garment receives a stable job ID.
+
+The order page has separate **Overview**, **Garments**, **Fittings**, **Costs & received** and **Activity** sections. **Workshop** shows assignment counts for physical garments and orders awaiting breakdown. Select a maker to see their queue. Opening a garment from that queue takes you to its details.
 
 Staff choose the saved measurements, fabric swatch and maker for each batch or individual job. The list remains a draft until **Confirm garment breakdown** or **Save garment jobs** succeeds. Draft jobs can be removed before saving. Saved jobs retain their task history.
 
-**Edit garment & progress** changes that garment's name, instructions, maker, fabric, current stage and task entries. **Apply to garment list** keeps the edits in the workspace. **Save garment jobs** records them. Checking a task records that task's completion and date. The stage selector can record the current stage independently of earlier task completion.
+**Edit garment & progress** opens assignments, stage and fittings. Expand **Workshop tasks** for the rest of the checklist. **Apply to garment list** keeps the edits in the workspace. **Save garment jobs** records them. Checking a task records that task's completion and date. The stage selector can record the current stage independently of earlier task completion.
 
 The order displays how many garments are ready. Its overall stage follows the earliest unfinished garment stage. Payments, quoted value, committed order fabric metres and existing workflow entries remain at order level. Team shows active garment jobs under their assigned maker. Order search includes each garment’s fabric, maker and label. Delivered orders identify any tasks not marked complete without placing those jobs back in the workshop queue.
 
@@ -26,13 +28,13 @@ These changes add optional cancellation/history fields on jobs and amendment, co
 
 ## Additional trials
 
-Open **Edit garment & progress → Add trial / fitting** to add a second, third or later fitting for that garment. Enter its scheduled date and notes, then use **Apply to garment list → Save garment jobs**. Adding a trial to a garment at fitting, finishing, ready or delivered stage returns its current stage to fitting; completed tasks and earlier fitting dates remain intact. Tick the new trial only when it is completed. Scheduling it does not mark any task complete. Cancel discards additions made in the editor.
+Open the order's **Fittings** section and choose **Add fitting** for the garment, or use **Edit garment & progress → Add trial / fitting** in the garment workspace. Enter the date and notes, then use **Apply to garment list → Save garment jobs**. Earlier notes and completion dates are under **Fitting history**. Adding a fitting through the garment editor at or beyond fitting stage returns the garment to fitting. Tick a fitting when it takes place. Cancel discards changes made in the editor.
 
-For orders awaiting garment breakdown, **Sequence & Trial Dates → Add trial / fitting** adds the trial to the existing order workflow. Choose **Save Sequence & Sync Stage** to keep dates and notes. As before, changing a sequence checkbox or stage also saves immediately. Existing trial numbering is respected. The pipeline retains its existing fitting-stage category; individual rows identify the second, third and later trials.
+For orders awaiting garment breakdown, choose **Manage order fittings → Add trial / fitting**. Choose **Save Sequence & Sync Stage** to keep dates and notes. Changing a sequence checkbox or stage also saves immediately. The tracker preserves existing trial numbering.
 
 ## Measurements
 
-Selecting a docket creates an immutable measurement copy. Jobs sharing the same saved docket reuse one copy. Editing the original docket leaves those job copies intact. **View measurement copy** shows the garment's fields in the cutter's sequence, with units, options and notes. To adopt later edits, explicitly select **Replace with the latest saved measurements**. Previous copies remain stored and job activity retains their references.
+Selecting a docket creates an immutable measurement copy. Jobs sharing the same saved docket reuse one copy. Editing the original docket leaves those job copies intact. Open **Garment details → View measurement copy** to see the garment's fields in the cutter's sequence, with units, options and notes. To adopt later edits, explicitly select **Replace with the latest saved measurements**. Previous copies remain stored and job activity retains their references.
 
 ## Individual workshop sheets
 

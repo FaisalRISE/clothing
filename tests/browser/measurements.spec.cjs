@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { navigate } = require('../navigate.cjs');
 
 test('measurement entry, scoped save, units, sections, scrolling and on-demand A4 preview', async ({page}, testInfo) => {
   const errors=[];
@@ -101,7 +102,7 @@ test('new workspace stays empty; corrupt storage remains downloadable and recove
   await page.evaluate(()=>localStorage.setItem('modisto_bespoke_v7','broken original JSON'));
   await page.reload();
   await expect(page.locator('.mode-banner')).toContainText('Saving is blocked');
-  await page.locator('[data-v="settings"]').click();
+  await navigate(page, 'settings');
   const downloading=page.waitForEvent('download');
   await page.locator('[data-act="exportRecovery"]').click();
   const download=await downloading;
@@ -182,6 +183,7 @@ test('searchable pickers open the right docket and turn a saved docket into one 
   await expect(page.locator('#mClientSelect')).toContainText('Demo Client Four');
   await expect(page.locator('[data-m="Inseam"]')).toHaveValue('');
 
+  await page.locator('#docketDetailsLabel').click();
   await page.locator('#mSwatchCode').click();
   await page.locator('#pickSearch').fill('royal oxford');
   await expect(page.locator('#pickList button')).toHaveCount(1);
@@ -226,6 +228,7 @@ test('searchable pickers open the right docket and turn a saved docket into one 
   expect(await page.evaluate(id => DB.measurements[id], docket.id)).toEqual(docket);
   await page.reload();
   await page.locator('[data-v="orders"]').click();
+  await page.locator(`[data-open-tracked-order="${order.id}"]`).click();
   await page.locator(`[data-act="openMeasureByOrder"][data-id="${order.id}"]`).click();
   await expect(page.locator('[data-m="Inseam"]')).toHaveValue('29.25');
   await expect(page.locator('#abCreateOrder')).toBeHidden();

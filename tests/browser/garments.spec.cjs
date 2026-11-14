@@ -1,7 +1,9 @@
 const { test, expect } = require('@playwright/test');
+const { navigate } = require('../navigate.cjs');
 
 async function openJobs(page, orderId = 'o_3') {
   await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-open-tracked-order="' + orderId + '"]').click();
   await page.locator('[data-act="openGarments"][data-id="' + orderId + '"]').click();
 }
 
@@ -47,6 +49,7 @@ test('review one suit and two shirts, then progress one job while retaining the 
 
   const jacketId = saved.garmentJobs[0].id;
   await page.locator('[data-job-edit="' + jacketId + '"]').click();
+  await page.getByText('Workshop tasks', {exact:true}).click();
   await page.locator('#gjStage').selectOption('Cutting');
   await page.locator('[data-gj-done="3"]').check();
   await page.locator('[data-gj-date="3"]').fill('2026-11-08');
@@ -64,6 +67,7 @@ test('review one suit and two shirts, then progress one job while retaining the 
   await page.locator('#gjApply').click();
   await page.locator('#gjSave').click();
   await expect(page.locator('#main')).toContainText('1 of 4 garments ready');
+  await page.locator('#gjHistory > summary').click();
   await page.locator('#gjLegacy').click();
   await expect(page.locator('#modal')).toContainText('Retain fitting findings');
   await page.locator('#gjHistoryClose').click();
@@ -73,12 +77,20 @@ test('review one suit and two shirts, then progress one job while retaining the 
   await openJobs(page);
   await expect(page.locator('[data-job-card]')).toHaveCount(4);
   await expect(page.locator('[data-job-card="' + jacketId + '"]')).toContainText('Ready');
+  await page.locator('[data-job-card="' + jacketId + '"] .garment-details > summary').click();
   await page.locator('[data-job-copy="' + jacketId + '"]').click();
   await expect(page.locator('#modal')).toContainText('Chest (Suit)');
   await page.locator('#gjCopyClose').click();
-  await page.locator('[data-v="team"]').click();
-  await page.locator('.stage-pill-btn[data-select-emp="emp_4"]').click();
+  await navigate(page, 'team');
+  await page.locator('[data-select-emp="emp_4"]').click();
   await expect(page.locator('#main')).toContainText('Garment jobs assigned to Demo Jacket Maker');
+  await expect(page.locator('#main')).toContainText('No workflow recorded');
+  expect(await page.locator('.tracking').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({path:testInfo.outputPath('workshop-queue.png'),fullPage:true});
+  await page.locator('[data-workshop-job="' + jacketId + '"]').click();
+  await expect(page.locator('[data-job-card="' + jacketId + '"] .garment-details')).toHaveAttribute('open', '');
+  await page.getByRole('button', {name:'← Workshop', exact:true}).click();
+  await expect(page.locator('[data-select-emp="emp_4"]')).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]);
 });
 
@@ -89,7 +101,10 @@ test('measurement copies remain stable, refresh explicitly, and garment saves su
   await page.locator('#gjSave').click();
   const saved = await page.evaluate(() => JSON.parse(JSON.stringify(DB.orders.o_3.garmentJobs[0])));
   await page.locator('[data-v="measure"]').click();
-  await expect(page.locator('#main')).toContainText('0 of 1 garments ready');
+  await page.locator('#docketDetailsLabel').click();
+  await page.getByRole('button', {name:'Open linked order', exact:true}).click();
+  await expect(page.locator('.tracking-overview')).toContainText('0 ready · 0 delivered · 1 garment');
+  await page.getByRole('button', {name:'← Measurements', exact:true}).click();
   await page.locator('#mViewMode').selectOption('relevant');
   await page.locator('[data-m="Chest"]').fill('41.25');
   await page.locator('#abSave').click();
@@ -139,6 +154,7 @@ test('measurement copies remain stable, refresh explicitly, and garment saves su
   await expect(page.locator('#gjStatus')).toContainText('changed in another tab');
   await page.locator('[data-v="orders"]').click();
   await page.locator('#cdOk').click();
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('[data-act="editOrder"][data-id="o_3"]').click();
   await page.locator('#omAmount').fill('151000');
   await page.evaluate(() => {

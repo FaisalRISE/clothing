@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 async function openJobs(page) {
   await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('[data-act="openGarments"][data-id="o_3"]').click();
 }
 
@@ -80,6 +81,7 @@ test('legacy order tracker adds trials safely and preserves drafts on a failed o
     return JSON.parse(JSON.stringify(order));
   });
   await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('button[data-act="openSequenceModal"][data-id="o_3"]').click();
   await page.locator('.seq-note[data-idx="3"]').fill('Keep cutting note while adding trials');
   await page.locator('#seqAddTrial').click();
@@ -101,6 +103,7 @@ test('legacy order tracker adds trials safely and preserves drafts on a failed o
   await page.locator('#seqSave').click();
   await page.reload();
   await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('button[data-act="openSequenceModal"][data-id="o_3"]').click();
   await expect(page.locator('.seq-chk')).toHaveCount(11);
   await expect(page.locator('.seq-chk[data-idx="5"]')).toBeChecked();

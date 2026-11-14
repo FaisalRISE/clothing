@@ -33,3 +33,5 @@ Read [the measurement milestone report](docs/measurement-milestone.md) before us
 Read [the garment jobs guide](docs/garment-jobs.md) for reviewing existing order quantities, assigning individual garments and retaining saved measurement copies.
 
 Read [the sample-order workflow check](docs/workflow-check.md) for the client → measurements → four garment jobs → fitting → workshop sheets → delivery → reviewed financial totals rehearsal and its remaining limitations.
+
+Read [the UI simplification roadmap](docs/ui-simplification-roadmap.md) for the review and implementation history. Today and Orders lead to contextual order sections, and Workshop shows garment and legacy order assignments separately. Clients and Fabrics use searchable directories, and mobile navigation keeps Today, Orders and Measure in view.
