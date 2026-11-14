@@ -28,7 +28,11 @@ test('a new client completes a suit and two shirts from measurement to fitting, 
  await expect(page.locator('#liveCostSummary')).toContainText('Timing not recorded');
  await expect(page.getByLabel('Recorded received total (₹)',{exact:true})).toHaveValue('');
  await page.locator('#omGarments').fill('1× 2-Piece Bespoke Suit + 2× Bespoke Shirt');
- await page.locator('#omAmount').fill('50000');await page.locator('#omAdvance').fill('20000');await page.locator('#omMeters').fill('6.5');await page.locator('#omRate').fill('1000');
+ await page.locator('#omCostsSummary').click();
+ await page.locator('#omAmount').fill('50000');await page.locator('#omAdvance').fill('20000');
+ await page.locator('#omCostBreakdown > summary').click();await page.locator('#omRate').fill('1000');
+ await page.locator('#omFabricSummary').click();await page.locator('#omMeters').fill('6.5');
+ await page.locator('#omWorkshopSection > summary').click();
  await page.locator('#omTrialDate').fill('2026-11-15');await page.locator('#omDeliver').fill('2026-11-25');await page.locator('#omAssigned').selectOption('Demo Master Cutter');
  await page.locator('#omSave').click();await expect(page.locator('#overlay')).toBeHidden();
  const order=await page.evaluate(id=>JSON.parse(JSON.stringify(Object.values(DB.orders).find(o=>o.measurementId===id))),docket.id);

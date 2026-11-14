@@ -156,6 +156,7 @@ test('measurement copies remain stable, refresh explicitly, and garment saves su
   await page.locator('#cdOk').click();
   await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('[data-act="editOrder"][data-id="o_3"]').click();
+  await page.locator('#omCostsSummary').click();
   await page.locator('#omAmount').fill('151000');
   await page.evaluate(() => {
     const otherTab = JSON.parse(localStorage.getItem(DB_KEY));
