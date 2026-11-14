@@ -732,6 +732,29 @@ tr.rowlink:hover { background: #faf7f0; }
   border-top: 1px solid var(--line);
 }
 
+/* The order editor keeps optional details out of the primary entry path. */
+.modal:has(.order-form) { max-height: calc(100dvh - 48px); overflow: auto; padding-bottom: 0; }
+.order-form > p { margin: 0 0 16px; }
+.order-form-basics { display: grid; gap: 14px; margin: 18px 0; }
+.order-form .grid2 > *, .order-form .field { min-width: 0; }
+.order-form-section { border-top: 1px solid var(--line); padding: 4px 0; }
+.order-form-section > summary, .order-effort > summary { cursor: pointer; min-height: 44px; padding: 12px 4px; font-weight: 600; }
+.order-form-section > summary span { font-size: 12px; color: var(--ink-soft); font-weight: 400; margin-left: 8px; }
+.order-form-section > .grid2, .order-effort > .grid2 { margin: 8px 0 14px; }
+.order-effort { margin-top: 8px; }
+.order-estimate { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.order-cost-summary { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 0; font-size: 13px; }
+.order-review-notice { padding: 12px; border-left: 3px solid var(--gold-strong); background: #faf6ed; }
+.order-form #omSaveError { color: var(--danger); margin: 12px 0; }
+.order-form #omSaveError:empty { display: none; }
+.modal .order-form-actions { position: sticky; bottom: 0; background: var(--card); padding: 12px 0; flex-wrap: wrap; z-index: 1; }
+.order-form-actions .btn { min-height: 44px; }
+@media(max-width: 760px) {
+  .modal:has(.order-form) { padding: 16px 14px 0; max-height: calc(100dvh - 24px); }
+  .overlay:has(.order-form) { padding: 12px; }
+  .order-form-section > summary span { display: block; margin: 4px 0 0 18px; }
+}
+
 .actionbar {
   position: fixed;
   left: 218px;
@@ -5582,7 +5605,7 @@ function mountGarmentJobs() {
   $$("#main [data-job-cancel]").forEach(button => button.onclick = () => garmentCancellationModal(button.dataset.jobCancel));
   if ($("#gjReview")) $("#gjReview").onclick = () => {
     if (garmentWorkspaceDirty()) { toast("Save garment changes before reviewing order totals."); return; }
-    ACTIONS.editOrder(GARMENT_WORKSPACE.orderId);
+    ACTIONS.editOrder(GARMENT_WORKSPACE.orderId, "costs");
   };
   $$("#main [data-job-remove]").forEach(button => button.onclick = () => {
     GARMENT_WORKSPACE.jobs = GARMENT_WORKSPACE.jobs.filter(job => job.id !== button.dataset.jobRemove);
@@ -5723,7 +5746,7 @@ function orderOverviewContent(item, section) {
     <h2>Costs &amp; received</h2>
     <p>${esc(orderReceivedSummary(order))}</p>
     ${order.commercialReviewRequired ? '<p role="status"><b>Fabric / payment review pending.</b></p>' : ""}
-    <button class="btn" data-act="editOrder" data-id="${esc(order.id)}">Review fabric &amp; payments</button>
+    <button class="btn" data-act="reviewOrderCosts" data-id="${esc(order.id)}">Review fabric &amp; payments</button>
   </section>`;
   if (section === "activity") return `<section class="card tracking-panel">
     <h2>Activity</h2>
@@ -6380,7 +6403,7 @@ function createOrderFromMeasurement() {
   orderModal(null, docket.clientId, docket);
 }
 
-function orderModal(o, clientId, sourceDocket = null) {
+function orderModal(o, clientId, sourceDocket = null, initialSection = "details") {
   o = o || {};
   if (sourceDocket) {
     const garments = Array.isArray(sourceDocket.selectedGarments) ? sourceDocket.selectedGarments : [];
@@ -6406,163 +6429,187 @@ function orderModal(o, clientId, sourceDocket = null) {
   };
 
   openModal(`
-    <h2>${sourceDocket ? "Create order from measurements" : o.id ? "Edit Order, Timeline & Costing" : "New Bespoke Order, Timeline & Costing"}</h2>
-    ${sourceDocket ? "<p>Review the garments and swatch, then enter the agreed order details.</p>" : ""}
-    <div class="grid3">
-      <div class="field">
-        <label class="req">Client</label>
-        <select id="omClient" ${sourceDocket || o.measurementId || o.garmentJobs?.length ? "disabled" : ""}>
-          ${allClients.map(c => `<option value="${esc(c.id)}" ${c.id === cid ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
-        </select>
-      </div>
-      <div class="field">
-        <label>Order No</label>
-        <input id="omNo" value="${esc(o.orderNo || makeOrderNo())}" ${o.measurementId ? "readonly" : ""}>
-      </div>
-      <div class="field">
-        <label>Workshop Stage</label>
-        <select id="omStatus" ${o.garmentJobs?.length ? "disabled" : ""}>
-          ${(o.status === "Cancelled" ? ORDER_FILTER_STAGES : ORDER_STAGES).map(s => `<option ${s === (o.status || "New") ? "selected" : ""}>${s}</option>`).join("")}
-        </select>
-      </div>
-      <div class="field">
-        <label>Order Date</label>
-        <input id="omDate" type="date" value="${esc(o.date || new Date().toISOString().slice(0, 10))}">
-      </div>
-      <div class="field">
-        <label>📅 1st Trial / Fitting Date</label>
-        <input id="omTrialDate" type="date" value="${esc(o.trialDate || "")}">
-      </div>
-      <div class="field">
-        <label>Promised Delivery</label>
-        <input id="omDeliver" type="date" value="${esc(o.delivery || "")}">
-      </div>
-      <div class="field">
-        <label>Master Cutter / Tailor</label>
-        <select id="omAssigned"><option value="">— Unassigned —</option>
-          ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === o.assignedTo ? "selected" : ""}>${esc(e.name)} (${esc(e.role.split(" ")[0])})</option>`).join("")}
-        </select>
-      </div>
-      <div class="field">
-        <label>Stitching Karigar Assigned</label>
-        <select id="omKarigar">
-          <option value="">— Select Karigar —</option>
-          ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === o.karigarAssigned ? "selected" : ""}>${esc(e.name)} (${esc(e.role)})</option>`).join("")}
-        </select>
-      </div>
-      <div class="field">
-        <label>Estimated Days</label>
-        <input id="omEstDays" type="number" step="1" value="${esc(o.estDays ?? "")}">
-      </div>
-      <div class="field">
-        <label>Actual / Elapsed Days</label>
-        <input id="omActDays" type="number" step="1" value="${esc(o.actualDays ?? "")}">
-      </div>
-      <div class="field full">
-        <label>Garments Ordered</label>
-        <div style="display:flex;gap:8px;">
-          <input id="omGarments" list="garmentDatalist" value="${esc(garmentOrderDescription(o))}" placeholder="e.g. 2-Piece Bespoke Suit + 2 Bespoke Shirts" ${o.garmentJobs?.length ? "readonly" : ""}>
-          <button type="button" class="btn sm soft" id="btnAutoEstCloth" ${o.garmentJobs?.length ? 'disabled title="Review fabric requirements for the individual garments before entering order totals"' : 'title="Estimate fabric meters from this client\'s body measurements"'}>📏 Auto-Estimate Cloth</button>
+    <div class="order-form">
+      <h2>${sourceDocket ? "Create order from measurements" : o.id ? "Edit order" : "New order"}</h2>
+      <p>${sourceDocket ? "Review the saved garment choices, then enter the agreed order details." : "Start with the order details. Add fabric, workshop and cost information when known."}</p>
+      ${o.commercialReviewRequired ? '<p class="order-review-notice" role="status">Fabric and payment review is pending. Open Costs &amp; received to review the garment changes.</p>' : ""}
+      <section aria-label="Order details" class="order-form-basics">
+        <div class="grid2">
+          <div class="field">
+            <label for="omClient" class="req">Client</label>
+            <select id="omClient" ${sourceDocket || o.measurementId || o.garmentJobs?.length ? "disabled" : ""}>
+              ${allClients.map(c => `<option value="${esc(c.id)}" ${c.id === cid ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="omNo">Order No</label>
+            <input id="omNo" value="${esc(o.orderNo || makeOrderNo())}" ${o.measurementId ? "readonly" : ""}>
+          </div>
         </div>
-        <datalist id="garmentDatalist">
-          ${GARMENT_OPTIONS.map(g => `<option value="${esc(g)}">`).join("")}
-        </datalist>
+        <div class="field full">
+          <label for="omGarments">Garments Ordered</label>
+          <div>
+            <input id="omGarments" list="garmentDatalist" value="${esc(garmentOrderDescription(o))}" placeholder="e.g. 2-Piece Bespoke Suit + 2 Bespoke Shirts" ${o.garmentJobs?.length ? "readonly" : ""}>
+          </div>
+          <datalist id="garmentDatalist">
+            ${GARMENT_OPTIONS.map(g => `<option value="${esc(g)}">`).join("")}
+          </datalist>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="omDate">Order Date</label>
+            <input id="omDate" type="date" value="${esc(o.date || new Date().toISOString().slice(0, 10))}">
+          </div>
+          <div class="field">
+            <label for="omDeliver">Promised Delivery</label>
+            <input id="omDeliver" type="date" value="${esc(o.delivery || "")}">
+          </div>
+          <div class="field">
+            <label for="omTrialDate">📅 1st Trial / Fitting Date</label>
+            <input id="omTrialDate" type="date" value="${esc(o.trialDate || "")}">
+          </div>
+        </div>
+      </section>
+      <details class="order-form-section" id="omFabricSection">
+        <summary id="omFabricSummary">Fabric <span>Swatch, cloth requirement and finishing</span></summary>
+        <div class="grid2">
+          <div class="field">
+            <label for="omSwatch">Primary Swatch #</label>
+            <select id="omSwatch">
+              <option value="">— Select Swatch # —</option>
+              ${o.swatchCode && !allSwatches.some(s => s.code === o.swatchCode) ? `<option value="${esc(o.swatchCode)}" selected>${esc(o.swatchCode)}</option>` : ""}
+              ${allSwatches.map(s => `<option value="${esc(s.code)}" ${s.code === o.swatchCode ? "selected" : ""}>${esc(s.code)} · ${esc(s.colorName)} (Stock: ${s.stockMeters}m)</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="omFabric">Cloth / Mill Description</label>
+            <input id="omFabric" value="${esc(o.fabric || "")}" placeholder="Mill, bunch, shade details">
+          </div>
+          <div class="field">
+            <label for="omMeters">Cloth Required (Meters)</label>
+            <input id="omMeters" type="number" step="0.05" value="${esc(o.fabricMeters ?? "")}">
+          </div>
+          <div class="field">
+            <label for="omLining">Lining &amp; Buttons</label>
+            <input id="omLining" value="${esc(o.liningCode || "")}" placeholder="e.g. Bemberg Cupro Navy + Horn">
+          </div>
+        </div>
+        <div class="order-estimate"><button type="button" class="btn sm soft" id="btnAutoEstCloth" ${o.garmentJobs?.length ? 'disabled title="Review fabric requirements for the individual garments before entering order totals"' : 'title="Estimate fabric meters from this client\'s body measurements"'}>📏 Auto-Estimate Cloth</button><small>An estimate fills the draft cloth requirement. Review it before saving.</small></div>
+      </details>
+      <div id="omStockAlertBox" role="status"></div>
+      <details class="order-form-section" id="omWorkshopSection">
+        <summary>Workshop <span>Assignments, stage and recorded time</span></summary>
+        ${o.garmentJobs?.length ? '<p>Garment stages and makers are managed individually in Garments. The assignments below are the order-level references.</p>' : ""}
+        <div class="grid2">
+          <div class="field">
+            <label for="omStatus">Workshop Stage</label>
+            <select id="omStatus" ${o.garmentJobs?.length ? "disabled" : ""}>
+              ${(o.status === "Cancelled" ? ORDER_FILTER_STAGES : ORDER_STAGES).map(s => `<option ${s === (o.status || "New") ? "selected" : ""}>${s}</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="omAssigned">Master Cutter / Tailor</label>
+            <select id="omAssigned"><option value="">— Unassigned —</option>
+              ${o.assignedTo && !allEmployees.some(e => e.name === o.assignedTo) ? `<option selected value="${esc(o.assignedTo)}">${esc(o.assignedTo)} · saved assignment</option>` : ""}
+              ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === o.assignedTo ? "selected" : ""}>${esc(e.name)} (${esc(e.role.split(" ")[0])})</option>`).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="omKarigar">Stitching Karigar Assigned</label>
+            <select id="omKarigar">
+              <option value="">— Select Karigar —</option>
+              ${o.karigarAssigned && !allEmployees.some(e => e.name === o.karigarAssigned) ? `<option selected value="${esc(o.karigarAssigned)}">${esc(o.karigarAssigned)} · saved assignment</option>` : ""}
+              ${allEmployees.map(e => `<option value="${esc(e.name)}" ${e.name === o.karigarAssigned ? "selected" : ""}>${esc(e.name)} (${esc(e.role)})</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <details class="order-effort"><summary>Time estimates and delay notes</summary>
+          <div class="grid2">
+            <div class="field">
+              <label for="omEstDays">Estimated Days</label>
+              <input id="omEstDays" type="number" step="1" value="${esc(o.estDays ?? "")}">
+            </div>
+            <div class="field">
+              <label for="omActDays">Actual / Elapsed Days</label>
+              <input id="omActDays" type="number" step="1" value="${esc(o.actualDays ?? "")}">
+            </div>
+            <div class="field">
+              <label for="omEstHours">Estimated Craft Hours</label>
+              <input id="omEstHours" type="number" step="1" value="${esc(o.estHours ?? "")}">
+            </div>
+            <div class="field">
+              <label for="omHours">Actual Craft Hours Spent</label>
+              <input id="omHours" type="number" step="1" value="${esc(o.hoursSpent ?? "")}">
+            </div>
+            <div class="field full">
+              <label for="omPainPoint">Bottleneck / Pain Point Note (If Delayed)</label>
+              <input id="omPainPoint" value="${esc(o.painPointNote || "")}" placeholder="e.g. Trial rescheduled, awaiting mill fabric, extra hand-padding…">
+            </div>
+          </div>
+        </details>
+      </details>
+      <details class="order-form-section" id="omCostsSection" ${initialSection === "costs" || o.commercialReviewRequired ? "open" : ""}>
+        <summary id="omCostsSummary">Costs &amp; received <span>Quote, receipts and fabric review</span></summary>
+        <div class="grid2">
+          <div class="field">
+            <label for="omAmount" class="req">Client Quoted Price (₹)</label>
+            <input id="omAmount" type="number" step="500" value="${esc(o.amount ?? "")}">
+          </div>
+          <div class="field">
+            <label for="omAdvance">Recorded received total (₹)</label>
+            <input id="omAdvance" type="number" step="500" value="${esc(o.advancePaid ?? "")}">
+            <small>Enter verified cumulative receipts, including advance and final payments. Individual payment transactions are not tracked here.</small>
+          </div>
+        </div>
+        <details class="order-effort" id="omCostBreakdown"><summary>Recorded cost breakdown</summary>
+          <div class="grid2">
+            <div class="field">
+              <label for="omRate">Cloth Cost / Meter (₹)</label>
+              <input id="omRate" type="number" step="50" value="${esc(o.fabricRate ?? "")}">
+            </div>
+            <div class="field">
+              <label for="omTrims">Canvas, Lining &amp; Trims (₹)</label>
+              <input id="omTrims" type="number" step="100" value="${esc(o.trimsCost ?? "")}">
+            </div>
+            <div class="field">
+              <label for="omCutter">Master Cutter Cost (₹)</label>
+              <input id="omCutter" type="number" step="100" value="${esc(o.cutterCost ?? "")}">
+            </div>
+            <div class="field">
+              <label for="omKarigarCost">Karigar / Stitching Cost (₹)</label>
+              <input id="omKarigarCost" type="number" step="100" value="${esc(o.karigarCost ?? "")}">
+            </div>
+            <div class="field">
+              <label for="omShip">Trial / Shipping Cost (₹)</label>
+              <input id="omShip" type="number" step="100" value="${esc(o.trialShippingCost ?? "")}">
+            </div>
+          </div>
+        </details>
+        <div id="liveCostSummary" class="order-cost-summary"></div>
+        <small>Contribution is an estimate from recorded costs. Missing costs are not a confirmed zero cost.</small>
+        ${o.garmentJobs?.length ? `<div class="card" style="margin-top:12px;">
+          <h3>Fabric &amp; payment review</h3>
+          <p>${o.commercialReviewRequired ? "Garments have changed. Review the order totals and fabric reservation before confirming." : "Changes to order totals are recorded with a reason."}</p>
+          <div class="field"><label for="omReserved">Reserved fabric (m)</label><input type="number" min="0" step="any" id="omReserved" value="${esc(orderFabricReservation(o))}"></div>
+          <p>Use 0 to release the order's remaining fabric reservation. Fabric metres used for costing, recorded costs, quote and advance remain separate totals above. Stock already marked as allocated in the fabric library is not rewritten.</p>
+          <div class="field"><label for="omAdjustmentReason">Reason / review note</label><textarea id="omAdjustmentReason" placeholder="Record the agreed change, or explain why totals remain unchanged"></textarea></div>
+          <label style="display:flex;align-items:start;gap:8px;"><input type="checkbox" id="omReviewConfirmed" style="width:22px;height:22px;flex-shrink:0;">I have reviewed fabric, quote and recorded received total for these garment changes.</label>
+          <p>This records reviewed totals; it does not process a refund or create a payment transaction.</p>
+          <p id="omReviewError" role="alert"></p>
+        </div>` : ""}
+      </details>
+      <details class="order-form-section" id="omNotesSection"><summary>Order notes <span>Instructions and trial notes</span></summary>
+        <div class="field full" style="margin-top:10px;">
+          <label for="omNotes">Order &amp; Trial Notes</label>
+          <textarea id="omNotes">${esc(o.notes || "")}</textarea>
+        </div>
+      </details>
+      <p id="omSaveError" role="alert"></p>
+      <div class="actions order-form-actions">
+        ${o.id && !o.garmentJobs?.length ? `<button class="btn danger" id="omDelete" style="margin-right:auto;">Delete Order</button>` : ""}
+        <button class="btn" id="omCancel">Cancel</button>
+        <button class="btn primary" id="omSave">${o.id ? "Save order" : "Create order"}</button>
       </div>
-      <div class="field">
-        <label>Primary Swatch #</label>
-        <select id="omSwatch">
-          <option value="">— Select Swatch # —</option>
-          ${o.swatchCode && !allSwatches.some(s => s.code === o.swatchCode) ? `<option value="${esc(o.swatchCode)}" selected>${esc(o.swatchCode)}</option>` : ""}
-          ${allSwatches.map(s => `<option value="${esc(s.code)}" ${s.code === o.swatchCode ? "selected" : ""}>${esc(s.code)} · ${esc(s.colorName)} (Stock: ${s.stockMeters}m)</option>`).join("")}
-        </select>
-      </div>
-      <div class="field">
-        <label>Cloth / Mill Description</label>
-        <input id="omFabric" value="${esc(o.fabric || "")}" placeholder="Mill, bunch, shade details">
-      </div>
-      <div class="field">
-        <label>Lining &amp; Buttons</label>
-        <input id="omLining" value="${esc(o.liningCode || "")}" placeholder="e.g. Bemberg Cupro Navy + Horn">
-      </div>
-    </div>
-
-    <!-- STOCK AVAILABILITY CHECK BANNER INSIDE ORDER MODAL -->
-    <div id="omStockAlertBox" style="margin-top:10px;"></div>
-
-    <!-- COSTING, TIMELINE & MARGIN CALCULATOR BOX -->
-    <div style="background:#faf6ed;border:1px solid var(--gold-soft);border-radius:8px;padding:12px 14px;margin-top:12px;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gold-strong);margin-bottom:8px;">
-        💰 Bespoke Costing, Craft Hours &amp; Margin Calculator (Live)
-      </div>
-      <div class="grid3">
-        <div class="field">
-          <label>Cloth Required (Meters)</label>
-          <input id="omMeters" type="number" step="0.05" value="${esc(o.fabricMeters ?? "")}">
-        </div>
-        <div class="field">
-          <label>Cloth Cost / Meter (₹)</label>
-          <input id="omRate" type="number" step="50" value="${esc(o.fabricRate ?? "")}">
-        </div>
-        <div class="field">
-          <label>Canvas, Lining &amp; Trims (₹)</label>
-          <input id="omTrims" type="number" step="100" value="${esc(o.trimsCost ?? "")}">
-        </div>
-        <div class="field">
-          <label>Master Cutter Cost (₹)</label>
-          <input id="omCutter" type="number" step="100" value="${esc(o.cutterCost ?? "")}">
-        </div>
-        <div class="field">
-          <label>Karigar / Stitching Cost (₹)</label>
-          <input id="omKarigarCost" type="number" step="100" value="${esc(o.karigarCost ?? "")}">
-        </div>
-        <div class="field">
-          <label>Trial / Shipping Cost (₹)</label>
-          <input id="omShip" type="number" step="100" value="${esc(o.trialShippingCost ?? "")}">
-        </div>
-        <div class="field">
-          <label>Estimated Craft Hours</label>
-          <input id="omEstHours" type="number" step="1" value="${esc(o.estHours ?? "")}">
-        </div>
-        <div class="field">
-          <label>Actual Craft Hours Spent</label>
-          <input id="omHours" type="number" step="1" value="${esc(o.hoursSpent ?? "")}">
-        </div>
-        <div class="field">
-          <label class="req">Client Quoted Price (₹)</label>
-          <input id="omAmount" type="number" step="500" value="${esc(o.amount ?? "")}">
-        </div>
-        <div class="field">
-          <label for="omAdvance">Recorded received total (₹)</label>
-          <input id="omAdvance" type="number" step="500" value="${esc(o.advancePaid ?? "")}">
-          <small>Enter verified cumulative receipts, including advance and final payments. Individual payment transactions are not tracked here.</small>
-        </div>
-        <div class="field full" style="grid-column: span 2;">
-          <label>Bottleneck / Pain Point Note (If Delayed)</label>
-          <input id="omPainPoint" value="${esc(o.painPointNote || "")}" placeholder="e.g. Trial rescheduled, awaiting mill fabric, extra hand-padding…">
-        </div>
-      </div>
-      <div id="liveCostSummary" style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--gold-soft);display:flex;justify-content:space-between;flex-wrap:wrap;font-size:12.5px;"></div>
-    </div>
-
-    <div class="field full" style="margin-top:10px;">
-      <label>Order &amp; Trial Notes</label>
-      <textarea id="omNotes">${esc(o.notes || "")}</textarea>
-    </div>
-    ${o.garmentJobs?.length ? `<div class="card" style="margin-top:12px;">
-      <h3>Fabric &amp; payment review</h3>
-      <p>${o.commercialReviewRequired ? "Garments have changed. Review the order totals and fabric reservation before confirming." : "Changes to order totals are recorded with a reason."}</p>
-      <div class="field"><label for="omReserved">Reserved fabric (m)</label><input type="number" min="0" step="any" id="omReserved" value="${esc(orderFabricReservation(o))}"></div>
-      <p>Use 0 to release the order's remaining fabric reservation. Fabric metres used for costing, recorded costs, quote and advance remain separate totals above. Stock already marked as allocated in the fabric library is not rewritten.</p>
-      <div class="field"><label for="omAdjustmentReason">Reason / review note</label><textarea id="omAdjustmentReason" placeholder="Record the agreed change, or explain why totals remain unchanged"></textarea></div>
-      <label style="display:flex;align-items:start;gap:8px;"><input type="checkbox" id="omReviewConfirmed" style="width:22px;height:22px;flex-shrink:0;">I have reviewed fabric, quote and recorded received total for these garment changes.</label>
-      <p>This records reviewed totals; it does not process a refund or create a payment transaction.</p>
-      <p id="omReviewError" role="alert"></p>
-    </div>` : ""}
-
-    <div class="actions">
-      ${o.id && !o.garmentJobs?.length ? `<button class="btn danger" id="omDelete" style="margin-right:auto;">Delete Order</button>` : ""}
-      <button class="btn" id="omCancel">Cancel</button>
-      <button class="btn primary" id="omSave">${o.id ? "Save Order & Costing" : "Create Order"}</button>
     </div>
   `);
 
@@ -6639,6 +6686,11 @@ function orderModal(o, clientId, sourceDocket = null) {
   });
   updateLiveCalc();
 
+  if (initialSection === "costs") $("#omCostsSummary").focus();
+  const showOrderError = message => {
+    $("#omSaveError").textContent = message;
+    $("#omSaveError").scrollIntoView({block: "nearest"});
+  };
   $("#omCancel").onclick = closeModal;
   const del = $("#omDelete");
   if (del) {
@@ -6659,7 +6711,8 @@ function orderModal(o, clientId, sourceDocket = null) {
   }
 
   $("#omSave").onclick = async () => {
-    if (!DB.clients[$("#omClient").value]) { toast("Choose a client before creating an order."); return; }
+    $("#omSaveError").textContent = "";
+    if (!DB.clients[$("#omClient").value]) { showOrderError("Choose a client before creating an order."); return; }
     const ordDate = $("#omDate").value;
     const statusVal = $("#omStatus").value;
     const cutterVal = $("#omAssigned").value;
@@ -6720,6 +6773,7 @@ function orderModal(o, clientId, sourceDocket = null) {
         await writeDatabase(next);
         DB = next;
       } catch (error) {
+        showOrderError("Could not create order. " + error.message);
         toast("Could not create order. " + error.message);
         return;
       }
@@ -6759,14 +6813,19 @@ function orderModal(o, clientId, sourceDocket = null) {
       DB = next;
     } catch (error) {
       if ($("#omReviewError")) $("#omReviewError").textContent = error.message;
+      showOrderError("Could not save order. " + error.message);
       toast("Could not save order. " + error.message);
       return;
     }
+    const returnFocus = modalOpener;
     closeModal();
     pushToSheets("Orders", flatOrder(rec));
     toast(o.id ? `Order ${rec.orderNo} & Sequence Stage (${rec.status}) updated` : "New order created");
     if (VIEW.name === "garments" && GARMENT_WORKSPACE?.orderId === rec.id) openGarmentWorkspace(rec.id);
     else render();
+    const focusTarget = returnFocus?.id ? document.getElementById(returnFocus.id) :
+      returnFocus?.dataset.act ? $(`[data-act="${CSS.escape(returnFocus.dataset.act)}"][data-id="${CSS.escape(returnFocus.dataset.id || "")}"]`) : null;
+    focusTarget?.focus({preventScroll: true});
   };
 }
 
@@ -7358,10 +7417,11 @@ const ACTIONS = {
   },
   newOrder(id) { orderModal(null, id); },
   newOrderPick() { orderModal(null, Object.keys(DB.clients)[0]); },
-  editOrder(id) {
+  reviewOrderCosts(id) { ACTIONS.editOrder(id, "costs"); },
+  editOrder(id, initialSection = "details") {
     try {
       const order = latestStoredDatabase().orders[id];
-      if (order) { DB.orders = { ...DB.orders, [id]: order }; orderModal(order); }
+      if (order) { DB.orders = { ...DB.orders, [id]: order }; orderModal(order, undefined, null, initialSection); }
     } catch (error) { toast(error.message); }
   },
   openGarments(id) { openGarmentWorkspace(id); },

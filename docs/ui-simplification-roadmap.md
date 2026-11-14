@@ -2,6 +2,8 @@
 
 **Implementation update, 14 November 2026.** The local redesign includes Today, compact Orders, contextual order sections, Workshop queues and the supporting screen consistency pass. Clients and Fabrics show searchable cards with details on demand. On phones and small tablets, More opens Clients, Workshop, Fabrics, reports and Settings. Measurements keeps unit and layout controls visible and groups order reference, date, swatch and cutter under Docket details. Existing records use the same storage format.
 
+**Release and follow-up, 14 November 2026.** UI-0 through UI-4 shipped through PR #8 (`3d70ca9`), with 126 local checks and 12 live demo checks passing. The subsequent local order-form increment keeps core details visible and places optional fabric, workshop, cost and note inputs behind labelled sections. See [focused order entry](order-form.md) for its verification and release status.
+
 Reviewed 11 November 2026. Prepared for handoff to the next implementer, expected to be GPT-6.1 sol.
 
 **Recommendation:** make the application answer “What needs attention, what is due next, and where do I act?” before showing supporting details. Start with Today, Orders and an order overview. Preserve the existing tailoring workflow and data protections. This document is a plan, not authorization to implement or deploy it.
