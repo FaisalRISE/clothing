@@ -103,7 +103,10 @@ test('conflicting imports are blocked and disabling a session clears its browser
   const op=await other.newPage();await login(op,'revoked@modisto.test');expect(await op.evaluate(()=>Object.keys(DB.clients).length)).toBeGreaterThan(0);
   await post(context,'/api/staff/disable',{id:result.user.id},user.csrf);
   await expect(op.locator('#sharedLogin')).toBeVisible({timeout:10000});expect(await op.evaluate(()=>Object.keys(DB.clients).length)).toBe(0);await expect(op.locator('#main')).toBeEmpty();
-  await op.locator('#sharedEmail').fill('owner@modisto.test');await op.locator('#sharedPassword').fill(password);await op.locator('#sharedLogin').click();await expect(op.locator('[data-v="settings"]')).toBeVisible();
+  await op.locator('#sharedEmail').fill('owner@modisto.test');await op.locator('#sharedPassword').fill(password);await op.locator('#sharedLogin').click();
+  await expect(op.locator('[data-v="dashboard"]')).toBeVisible();
+  if(await op.locator('#navMore').isVisible()) await op.locator('#navMore').click();
+  await expect(op.locator('[data-v="settings"]')).toBeVisible();
  }finally{await other.close();}
 });
 
@@ -117,7 +120,9 @@ test('new client, reviewed order, garment jobs and an additional trial persist t
  await page.locator('#omSave').click();await expect(page.locator('#overlay')).toBeHidden();
  const order=Object.values((await snapshot(context)).database.orders).find(item=>item.measurementId===docketId);
  expect(order).toMatchObject({amount:null,advancePaid:null,fabricMeters:null,trialDate:'',delivery:'',status:'New'});expect(order.workflow.every(step=>!step.done&&!step.doneDate)).toBe(true);
- await page.locator('[data-v="orders"]').click();await page.locator('[data-act="openGarments"][data-id="'+order.id+'"]').click();
+ await page.locator('[data-v="orders"]').click();
+ await page.locator('[data-open-tracked-order="'+order.id+'"]').click();
+ await page.locator('[data-act="openGarments"][data-id="'+order.id+'"]').click();
  await page.locator('#gjAdd').click();await page.locator('#gjDocket').selectOption(docketId);await page.locator('#gjMaker').fill('Demo Jacket Maker');await page.locator('#gjApply').click();
  await page.locator('#gjSave').click();await expect(page.locator('#gjStatus')).toHaveText('Garment jobs saved to staging server');
  const jobs=(await snapshot(context)).database.orders[order.id].garmentJobs;expect(jobs).toHaveLength(2);

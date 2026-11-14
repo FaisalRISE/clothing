@@ -1,7 +1,9 @@
 const { test, expect } = require('@playwright/test');
+const { navigate } = require('../navigate.cjs');
 
 async function openJobs(page) {
   await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('[data-act="openGarments"][data-id="o_3"]').click();
 }
 async function createJobs(page) {
@@ -16,6 +18,7 @@ async function createJobs(page) {
   return page.evaluate(()=>JSON.parse(JSON.stringify(DB.orders.o_3)));
 }
 async function changeCancellation(page,id,reason) {
+  await page.locator('[data-job-card="'+id+'"] .garment-details > summary').click();
   await page.locator('[data-job-cancel="'+id+'"]').click();
   await page.locator('#gjChangeReason').fill(reason);
   await page.locator('#gjChangeApply').click();
@@ -36,6 +39,7 @@ test('cancel one suit piece, review totals explicitly, reinstate it and add a sh
   });
   await page.reload();await openJobs(page);
   const id=before.order.garmentJobs[0].id;
+  await page.locator('[data-job-card="'+id+'"] .garment-details > summary').click();
   await page.locator('[data-job-cancel="'+id+'"]').click();
   await expect(page.locator('#gjChangeReason')).toBeFocused();
   await page.locator('#gjChangeApply').click();
@@ -58,8 +62,8 @@ test('cancel one suit piece, review totals explicitly, reinstate it and add a sh
   expect(await page.evaluate(()=>DB.swatches)).toEqual(before.swatches);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize().width);
   await page.screenshot({path:testInfo.outputPath('cancelled-garment.png'),fullPage:true});
-  await page.locator('[data-v="team"]').click();
-  await page.locator('.stage-pill-btn[data-select-emp="emp_4"]').click();
+  await navigate(page, 'team');
+  await page.locator('[data-select-emp="emp_4"]').click();
   await expect(page.locator('[data-team-garment]')).toHaveCount(1);
   await expect(page.locator('[data-team-garment="'+id+'"]')).toHaveCount(0);
   await openJobs(page);
@@ -121,8 +125,10 @@ test('all garments can be cancelled with safe retry and reviewed without silentl
   expect(await page.evaluate(()=>DB.orders.o_3.reservedFabricMeters)).toBe(40);
   await expect(page.locator('#main')).toContainText('0 active garments · 2 cancelled');
   await page.locator('[data-v="orders"]').click();
+  await page.locator('#orderFilters summary').click();
   await page.locator('#orderStageFilter').selectOption('Cancelled');
-  await expect(page.locator('tr[data-act="openSequenceModal"]')).toHaveCount(1);
+  await expect(page.locator('#orderRows [data-order-id]')).toHaveCount(1);
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('[data-act="openGarments"][data-id="o_3"]').click();
   await page.locator('#gjReview').click();
   await expect(page.locator('#omStatus')).toHaveValue('Cancelled');
@@ -165,6 +171,7 @@ test('delivered garments are protected and stale workshop sheets or cancellation
 test('an old legacy delete dialog cannot erase garment history adopted in another tab',async({page})=>{
   await page.goto('/?demo=1');
   await page.locator('[data-v="orders"]').click();
+  await page.locator('[data-open-tracked-order="o_3"]').click();
   await page.locator('[data-act="editOrder"][data-id="o_3"]').click();
   await expect(page.locator('#omDelete')).toBeVisible();
   await page.evaluate(()=>{
