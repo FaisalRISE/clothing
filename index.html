@@ -302,6 +302,33 @@ body {
   box-shadow: 0 0 0 3px rgba(139,111,62,.12);
 }
 .table-wrap { overflow-x: auto; }
+.client-directory .client-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(125px, auto)); gap: 10px; margin-bottom: 14px; }
+.client-toolbar input, .client-toolbar select { min-width: 0; width: 100%; }
+.client-directory table { table-layout: fixed; }
+.client-directory th { white-space: normal; }
+.client-directory td { overflow-wrap: anywhere; padding: 16px 10px; }
+.client-directory .client-name { border: 0; background: none; padding: 6px 0; color: var(--navy); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.client-name:hover { text-decoration: underline; }
+.client-directory .client-secondary { display: block; color: var(--ink-soft); font-size: 11.5px; margin-top: 4px; font-weight: 400; }
+.client-directory .client-designation { color: var(--gold-strong); }
+.client-directory .client-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.client-directory .client-actions .btn { min-height: 40px; }
+.client-directory .client-count { font-size: 12px; color: var(--ink-soft); margin: 8px 0; }
+@media(max-width: 1100px) {
+  .client-directory .client-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .client-toolbar input { grid-column: 1 / -1; }
+  .client-directory table, .client-directory tbody { display: block; }
+  .client-directory colgroup, .client-directory thead { display: none; }
+  .client-directory tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px 0; border-bottom: 1px solid var(--line); gap: 8px 16px; }
+  .client-directory td { display: block; border: 0; padding: 4px 0; }
+  .client-directory td:first-child { grid-column: 1 / -1; }
+  .client-directory td[data-label]::before { content: attr(data-label); display: block; color: var(--ink-soft); font-size: 10px; letter-spacing: .7px; text-transform: uppercase; margin-bottom: 6px; }
+}
+@media(max-width: 540px) {
+  .client-directory .client-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .client-toolbar #clientSortBy { grid-column: 1 / -1; }
+  .client-directory tr { grid-template-columns: minmax(0, 1fr); }
+}
 table { width: 100%; border-collapse: collapse; }
 th {
   font-size: 10.5px;
@@ -1402,6 +1429,82 @@ tr.rowlink:hover { background: #faf7f0; }
   body.garment-print-mode .workshop-copy-ref { font-size: 8px; }
   body.garment-print-mode .workshop-signoff { break-inside: avoid; }
 }
+/* Screen-only workspace refresh; workshop and docket print layouts stay independent. */
+@media screen {
+  .orders-workspace { gap: 18px; }
+  .orders-workspace h1, .measurement-heading h1 { font-family: inherit; font-size: clamp(26px, 3vw, 34px); font-weight: 700; letter-spacing: -1px; line-height: 1.2; }
+  .workspace-eyebrow { display: block; font-size: 10px; font-weight: 700; letter-spacing: 1.6px; color: var(--gold-strong); margin-bottom: 6px; }
+  .orders-workspace .tracking-heading p { font-size: 13px; margin-top: 8px; color: var(--ink-soft); }
+  .orders-workspace .btn.primary { background: var(--navy); border-color: var(--navy); border-radius: 10px; }
+  .order-command-panel { display: grid; gap: 16px; padding: 18px; background: white; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 3px 15px #131b2905; }
+  .order-command-panel .tracking-search { font-size: 12px; color: var(--ink-soft); }
+  .order-command-panel input[type="search"] { background: #f8f9fb; border-color: #e2e5eb; border-radius: 10px; font-size: 14px; }
+  .order-command-panel .tracking-views { gap: 6px; }
+  .order-command-panel .tracking-views .btn { display: inline-flex; gap: 8px; align-items: center; justify-content: center; border-color: transparent; border-radius: 9px; background: #f5f6f8; color: #586171; }
+  .order-command-panel .tracking-views .btn[aria-pressed="true"] { background: var(--navy); color: white; }
+  .order-view-count { display: inline-grid; place-items: center; min-width: 24px; padding: 1px 6px; border-radius: 6px; background: #0000000b; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .order-command-panel [aria-pressed="true"] .order-view-count { background: #ffffff24; }
+  .order-command-panel .tracking-filters { border: 0; margin: 0; padding: 0; }
+  .order-command-panel .tracking-filters > summary { padding: 2px 0; min-height: 28px; font-size: 12px; }
+  .orders-workspace .tracking-results { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .orders-workspace .tracking-order-head { padding: 0 18px 10px; font-size: 10px; letter-spacing: 1px; }
+  .orders-workspace .tracking-orders { display: grid; gap: 9px; }
+  .orders-workspace .tracking-order { padding: 18px; background: white; border: 1px solid #e2e5eb; border-radius: 12px; transition: border-color .15s, box-shadow .15s; }
+  .orders-workspace .tracking-order:hover, .orders-workspace .tracking-order:focus-within { border-color: var(--gold); box-shadow: 0 4px 16px #131b2909; }
+  .orders-workspace .tracking-identity .tracking-link { color: var(--navy); text-decoration: none; font-weight: 700; }
+  .orders-workspace .tracking-identity .tracking-link:hover { text-decoration: underline; }
+  .orders-workspace .tracking-identity > span { font-size: 11px; letter-spacing: .2px; }
+  .orders-workspace .tracking-due { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .orders-workspace .badge { border-radius: 6px; font-size: 11px; }
+  .measurement-heading { gap: 8px; margin-bottom: 18px; }
+  .measurement-title { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; width: 100%; }
+  .measurement-heading h1, .measurement-heading p { margin: 0; }
+  #measureContext { color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+  #measureRecordHint { width: 100%; font-size: 13px; color: var(--ink-soft); }
+  .record-state { padding: 5px 10px; border-radius: 6px; background: #eaf0fa; color: #31548e; font-size: 11px; font-weight: 650; }
+  .record-state[data-state="saved"] { background: #e9f4ed; color: #316448; }
+  .record-state[data-state="dirty"] { background: #fff2d9; color: #805b19; }
+  .measurement-workspace .card { box-shadow: 0 3px 14px #131b2905; border-radius: 13px; }
+  .measurement-workspace .card-title { color: var(--navy); font-size: 11px; letter-spacing: .7px; }
+  .measurement-options { display: grid; gap: 10px; margin-bottom: 12px; }
+  .measurement-workspace .measurement-options > * { margin-bottom: 0 !important; }
+  .measurement-workspace .clientbar { box-shadow: none; border-radius: 12px; }
+  .measurement-workspace #mClientSelect { background: #f5f6f8; border: 0; border-radius: 8px; padding: 8px 12px; }
+  .measurement-workspace .measurement-view { flex-wrap: wrap; gap: 16px; padding: 12px 0; font-size: 12px; color: var(--ink-soft); }
+  .measurement-workspace .measurement-view label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .measurement-workspace #mtabs { gap: 5px; padding: 6px; background: #eaecef; border: 0; border-radius: 12px; box-shadow: none; }
+  .measurement-workspace #mtabs .tab { border: 0; border-radius: 8px; padding: 12px; font-size: 12px; color: #576171; }
+  .measurement-workspace #mtabs .tab.on { background: white; color: var(--navy); box-shadow: 0 2px 5px #131b2910; }
+  .measurement-workspace .mrow:focus-within { background: #f3f6fc; border-radius: 6px; }
+  .measurement-workspace .mrow input { background: #f8f9fb; border-color: #dce1e8; border-radius: 8px; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .measurement-workspace .seg { gap: 3px; border: 0; background: #f0f2f5; padding: 3px; border-radius: 8px; }
+  .measurement-workspace .seg button { border: 0; border-radius: 6px; font-size: 12px; }
+  .measurement-workspace .seg button.on { background: white; box-shadow: 0 1px 4px #131b291a; }
+  .measurement-workspace .fraction-bar { border-radius: 10px; box-shadow: 0 4px 14px #131b2910; }
+  .measurement-workspace .actionbar { background: #fffffff5; border-top-color: #e2e5eb; box-shadow: 0 -5px 22px #131b2908; }
+  .measurement-workspace #abSave { background: var(--navy); border-color: var(--navy); border-radius: 9px; }
+  .measurement-workspace #abNewMeasure { border-color: var(--gold); color: var(--gold-strong); background: #faf7ef; }
+  .new-measurement-intro p { color: var(--ink-soft); font-size: 13px; margin: 8px 0 14px; }
+  .new-measurement-intro .btn { white-space: normal; text-align: left; }
+}
+@media screen and (max-width: 620px) {
+  .orders-workspace .tracking-heading { align-items: flex-start; }
+  .order-command-panel { padding: 13px; }
+  .order-command-panel .tracking-views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .orders-workspace .tracking-order { padding: 14px; }
+  .measurement-workspace .actionbar .inner { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .measurement-workspace .actionbar .status { grid-column: 1 / -1; font-size: 11px; }
+  .measurement-workspace #abNewMeasure { grid-column: span 2; }
+  .measurement-workspace .actionbar .btn { min-height: 42px; padding: 8px 6px; font-size: 11px; white-space: normal; width: 100%; }
+  .measurement-workspace .main { padding-bottom: 225px; }
+  .measurement-workspace .toast { bottom: 175px; }
+  .measurement-workspace #mtabs .tab { flex: 1 1 130px; }
+}
+@media screen and (min-width: 901px) {
+  .measurement-options { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+  .measurement-options > details[open], .measurement-options > div:has(details[open]) { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .orders-workspace .tracking-order { transition: none; } }
 #abCreateOrder[hidden] { display: none; }
 .panel { scroll-margin-top: 96px; }
 .fraction-bar { position: sticky; top: 0; z-index: 20; }
@@ -1530,8 +1633,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 <div class="actionbar" id="actionbar">
   <div class="inner">
     <span class="status" id="status" role="status" aria-live="polite">Ready to record measurements</span>
+    <button class="btn" id="abNewMeasure">+ New measurements</button>
     <details class="measurement-menu"><summary class="btn">More actions</summary><div>
-      <button class="btn" id="abNewMeasure">New docket</button>
       <button class="btn" id="abNewClient">New client</button>
       <button class="btn" id="abCopyPrev">Copy previous</button>
       <button class="btn danger" id="abClearAll">Clear fields</button>
@@ -3226,6 +3329,7 @@ if (branchSel) {
 
 function render() {
   const m = $("#main");
+  document.body.classList.toggle("measurement-workspace", VIEW.name === "measure");
   document.body.classList.toggle("garment-print-mode", VIEW.name === "garmentPrint");
   if (VIEW.name !== "garmentPrint") window.onbeforeprint = null;
   m.oninput = null;
@@ -3530,7 +3634,7 @@ function bindDirectory(prefix, state, renderRows, fields) {
     const previous = state.limit;
     state.limit += 25;
     refresh();
-    results.querySelectorAll(".directory-card")[previous]?.querySelector("button, summary")?.focus();
+    results.querySelectorAll(".directory-card, [data-client-row]")[previous]?.querySelector("button, summary")?.focus();
   };
 }
 
@@ -3549,9 +3653,13 @@ function directoryFacts(facts) {
 
 function clientRows({query, branch, country, sort, limit}) {
   const activeCounts = new Map();
+  const orderCounts = new Map();
+  const docketCounts = new Map();
+  for (const docket of Object.values(DB.measurements)) docketCounts.set(docket.clientId, (docketCounts.get(docket.clientId) || 0) + 1);
   const quotes = new Map();
   for (const order of Object.values(DB.orders)) {
     const id = order.clientId;
+    orderCounts.set(id, (orderCounts.get(id) || 0) + 1);
     if (!["Delivered", "Cancelled"].includes(order.status)) activeCounts.set(id, (activeCounts.get(id) || 0) + 1);
     if (sort === "spend") quotes.set(id, (quotes.get(id) || 0) + (parseFloat(order.amount) || 0));
   }
@@ -3566,41 +3674,53 @@ function clientRows({query, branch, country, sort, limit}) {
       sort === "name" ? 0 : (a[sort] || "").localeCompare(b[sort] || "");
     return compare || a.name.localeCompare(b.name);
   });
-  return directoryResults(list, limit, "client", "clients", client => {
-    const count = activeCounts.get(client.id) || 0;
-    return `<article class="card tracking-panel directory-card">
-      <h2><button class="tracking-link" data-go="client|${esc(client.id)}">${esc(client.name)}</button></h2>
-      <p>${esc(client.branch || "Branch unrecorded")} · ${count} active ${count === 1 ? "order" : "orders"}</p>
-    </article>`;
-  });
+  if (!list.length) return '<p role="status">No matching clients.</p>';
+  return `<p class="client-count" role="status">${list.length} ${list.length === 1 ? "client" : "clients"}</p>
+    <table aria-label="Client database">
+      <colgroup><col style="width:20%"><col style="width:20%"><col style="width:14%"><col style="width:19%"><col style="width:12%"><col style="width:15%"></colgroup>
+      <thead><tr><th scope="col">Client</th><th scope="col">Company &amp; designation</th><th scope="col">City &amp; country</th><th scope="col">Contact</th><th scope="col">History</th><th scope="col">Actions</th></tr></thead>
+      <tbody>${list.slice(0, limit).map(client => {
+        const orders = orderCounts.get(client.id) || 0, dockets = docketCounts.get(client.id) || 0;
+        return `<tr class="rowlink" data-client-row="${esc(client.id)}" data-go="client|${esc(client.id)}">
+          <td><div class="cname"><span class="avatar" aria-hidden="true">${esc(initials(client.name))}</span><div>
+            <button class="client-name" data-go="client|${esc(client.id)}">${esc(client.name)}</button>
+            <span class="client-secondary">${esc(client.branch || "Branch unrecorded")}</span>
+          </div></div></td>
+          <td data-label="Company &amp; designation"><b>${esc(client.company || "—")}</b><span class="client-secondary client-designation">${esc(client.designation || "")}</span></td>
+          <td data-label="City &amp; country"><b>${esc(client.city || "—")}</b><span class="client-secondary">${esc(client.country || "")}</span></td>
+          <td data-label="Contact">${esc(client.phone || "—")}<span class="client-secondary">${esc(client.email || "")}</span></td>
+          <td data-label="History">${dockets} docket${dockets === 1 ? "" : "s"} · ${orders} order${orders === 1 ? "" : "s"}<span class="client-secondary">${activeCounts.get(client.id) || 0} active</span></td>
+          <td data-label="Actions"><div class="client-actions">
+            <button class="btn sm soft" data-act="newOrder" data-id="${esc(client.id)}" aria-label="New order for ${esc(client.name)}">+ Order</button>
+            <button class="btn sm primary" data-act="measureFor" data-id="${esc(client.id)}" aria-label="Measure ${esc(client.name)}">Measure</button>
+          </div></td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>
+    ${list.length > limit ? '<button class="btn tracking-load" data-directory-more>Load more</button>' : ""}`;
 }
 
 function vClients() {
   const {query, branch, country, sort} = CLIENT_DIRECTORY;
   const countries = [...new Set(Object.values(DB.clients).map(c => c.country).filter(Boolean))].sort();
-  return `<div class="tracking">
-    <div class="tracking-heading"><h1>Clients</h1><button class="btn primary" data-act="newClient">New client</button></div>
-    <div class="tracking-controls" data-tracking-controls>
-      <label class="tracking-search">Search clients
-        <input type="search" id="clientSearch" placeholder="Name, company, phone or location" value="${esc(query)}">
-      </label>
-    </div>
-    <details class="tracking-filters" data-tracking-controls ${branch || country || sort !== "name" ? "open" : ""}>
-      <summary>Filters</summary>
-      <div class="tracking-controls">
-        <label>Branch <select id="clientBranchFilter">
-          <option value="">All branches</option>${["Mumbai", "London"].map(name => `<option ${name === branch ? "selected" : ""}>${name}</option>`).join("")}
-        </select></label>
-        <label>Country <select id="clientCountryFilter">
+  return `<div class="client-directory">
+    <div class="pagehead"><h1>Client Database</h1><button class="btn primary" data-act="newClient">+ Add New Client</button></div>
+    <div class="card">
+      <div class="client-toolbar searchrow" data-tracking-controls>
+        <input type="search" id="clientSearch" aria-label="Search clients" placeholder="Search by name, company, city, country or phone…" value="${esc(query)}">
+        <select id="clientCountryFilter" aria-label="Filter by country">
           <option value="">All countries</option>${countries.map(name => `<option ${name === country ? "selected" : ""}>${esc(name)}</option>`).join("")}
-        </select></label>
-        <label>Sort by <select id="clientSortBy">
-          ${[["name","Name"], ["city","City"], ["country","Country"], ["company","Company"], ["spend","Quoted order value"]]
-            .map(([value,label]) => `<option value="${value}" ${value === sort ? "selected" : ""}>${label}</option>`).join("")}
-        </select></label>
+        </select>
+        <select id="clientBranchFilter" aria-label="Filter by branch">
+          <option value="">All branches</option>${["Mumbai", "London"].map(name => `<option ${name === branch ? "selected" : ""}>${name}</option>`).join("")}
+        </select>
+        <select id="clientSortBy" aria-label="Sort clients by">
+          ${[["name","Client name (A–Z)"], ["city","City"], ["country","Country"], ["company","Company"], ["spend","Quoted order value"]]
+            .map(([value,label]) => `<option value="${value}" ${value === sort ? "selected" : ""}>Sort by: ${label}</option>`).join("")}
+        </select>
       </div>
-    </details>
-    <div id="clientRows">${clientRows(CLIENT_DIRECTORY)}</div>
+      <div id="clientRows">${clientRows(CLIENT_DIRECTORY)}</div>
+    </div>
   </div>`;
 }
 
@@ -3968,11 +4088,11 @@ function vMeasure() {
   };
 
   return `
-  <div class="pagehead">
+  <div class="pagehead measurement-heading no-print">
     ${c ? `<button class="crumb" data-go="client|${c.id}">← Back to ${esc(c.name)}</button>` : `<button class="crumb" data-go="clients">← Back to Clients</button>`}
-
-    <h1 style="width:100%;margin-top:2px;">Measurements</h1>
+    <div class="measurement-title"><h1>Measurements</h1><span id="measureRecordState" class="record-state"></span></div>
     <p id="measureContext">${esc(MREC.orderNo || "New docket")}</p>
+    <p id="measureRecordHint"></p>
   </div>
 
   <div class="clientbar">
@@ -3984,6 +4104,7 @@ function vMeasure() {
 
     </span>
   </div>
+  <div class="measurement-options no-print">
   <details class="card measurement-context no-print">
     <summary id="docketDetailsLabel">Docket details${MREC.swatchCode ? " · " + esc(MREC.swatchCode) : ""}</summary>
     <div class="clientbar">
@@ -4079,6 +4200,7 @@ function vMeasure() {
     </div>
   </details>
 
+  </div>
   <!-- QUARTER-INCH PRECISION HELPER BAR -->
   <div class="fraction-bar no-print">
     <span style="font-weight:600;color:var(--gold-soft);">📏 Quarter-Inch Precision Helper:</span>
@@ -4444,7 +4566,7 @@ function mountMeasure() {
       row.className = "mrow";
       row.innerHTML = `
         <span class="lbl">${esc(name)}</span>
-        <input type="number" step="any" inputmode="decimal" placeholder="0.00" data-m="${esc(name)}" value="${esc(v)}" aria-label="${esc(name)}">
+        <input type="number" step="any" inputmode="decimal" placeholder="—" data-m="${esc(name)}" value="${esc(v)}" aria-label="${esc(name)}">
         <span class="unit unitlbl">${esc(MREC.unit)}</span>
       `;
       box.appendChild(row);
@@ -4746,7 +4868,7 @@ function mountMeasure() {
       $("#panel-" + t.dataset.p).scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
-  $("#abSave").onclick = saveMeasure;
+  $("#abSave").onclick = async () => { await saveMeasure(); updateMeasurementIdentity(); };
   $("#abCreateOrder").hidden = Boolean(linkedOrderForDocket(MREC));
   $("#abCreateOrder").onclick = createOrderFromMeasurement;
   $("#abNewClient").onclick = () => leaveMeasurementDraft(() => clientModal(null, true));
@@ -4765,7 +4887,7 @@ function mountMeasure() {
   };
   $("#abCopyPrev").onclick = () => ACTIONS.copyPrev();
   $("#abClearAll").onclick = () => ACTIONS.clearMeasure();
-  $("#abNewMeasure").onclick = () => pickClientModal();
+  $("#abNewMeasure").onclick = startNewMeasurements;
   LAST_FOCUSED_INPUT = null;
   $$(".fraction-bar .fbtn").forEach(b => b.disabled = MREC.unit === "cm");
   $("#focusedFieldLabel").textContent = MREC.unit === "cm" ? "Metric entry: type decimals directly. Fraction buttons apply in inches." : "Focus a measurement, then choose a fraction.";
@@ -4781,12 +4903,37 @@ function mountMeasure() {
     if (measurementBaselines.get(MREC) !== JSON.stringify(MREC)) {
       $("#status").textContent = "Unsaved measurement changes · " + MREC.orderNo;
     }
+    updateMeasurementIdentity();
   };
   $("#main").oninput = markDirty;
   $("#main").onchange = markDirty;
   $$(".seg button[data-t], button[data-mat-t], #measureGarmentPicker [data-gp-id]").forEach(button => button.addEventListener("click", markDirty));
   markDirty();
   buildSummary();
+}
+
+function updateMeasurementIdentity() {
+  const state = $("#measureRecordState"), hint = $("#measureRecordHint");
+  if (!state || !hint) return;
+  const dirty = measurementBaselines.get(MREC) !== JSON.stringify(MREC);
+  state.textContent = dirty ? "Unsaved changes" : MREC.savedAt ? "Saved docket" : "New draft";
+  state.dataset.state = dirty ? "dirty" : MREC.savedAt ? "saved" : "new";
+  hint.textContent = MREC.savedAt
+    ? "You are editing this saved docket. Choose New measurements to start a separate blank record."
+    : "A new docket. Enter measurements, then save. Previous records stay unchanged.";
+}
+
+function startNewMeasurements() {
+  pickClientModal(undefined, "New measurements");
+  const list = $("#pickList");
+  if (!list) return;
+  const intro = document.createElement("div");
+  intro.className = "new-measurement-intro";
+  const client = DB.clients[MREC?.clientId];
+  intro.innerHTML = `<p>Start a blank docket. Saved measurements stay in the client's history. Values are copied only when you choose Copy previous.</p>
+    ${client ? `<button class="btn primary" id="newMeasureSameClient">Blank docket for ${esc(client.name)}</button><p>Or search for another client below.</p>` : ""}`;
+  $("#pickSearch").before(intro);
+  if (client) $("#newMeasureSameClient").onclick = () => { closeModal(); ACTIONS.measureFor(client.id); };
 }
 
 function buildDocketHeaderHTML(pageNum, totalPages) {
@@ -5641,11 +5788,12 @@ const ORDER_LIST_VIEWS = {
 function vOrders() {
   const {view, query, stage, branch, group} = ORDER_LIST;
   const filtersOpen = stage || branch || group || ORDER_LIST.filtersOpen;
-  return `<div class="tracking">
+  return `<div class="tracking orders-workspace">
     <div class="tracking-heading">
-      <h1>Orders</h1>
-      <button class="btn primary" data-act="newOrderPick">New order</button>
+      <div><span class="workspace-eyebrow">ORDER BOOK</span><h1>Orders</h1><p>Every client, every garment. Open an order to see the details.</p></div>
+      <button class="btn primary" data-act="newOrderPick">+ New order</button>
     </div>
+    <div class="order-command-panel">
     <div class="tracking-controls" data-tracking-controls>
       <label class="tracking-search">Search orders
         <input type="search" id="orderSearch" placeholder="Client, order, garment, swatch or maker" value="${esc(query)}">
@@ -5656,7 +5804,7 @@ function vOrders() {
     </div>
     <div class="tracking-views" aria-label="Order views">
       ${[...new Set(["active", "attention", "ready", "all", view])].map(key => `
-        <button class="btn" data-order-view="${key}" aria-pressed="${key === view}">${ORDER_LIST_VIEWS[key]}</button>
+        <button class="btn" data-order-view="${key}" aria-pressed="${key === view}">${ORDER_LIST_VIEWS[key]}${["active", "attention", "ready", "all"].includes(key) ? ` <span class="order-view-count" data-order-count="${key}"></span>` : ""}</button>
       `).join("")}
     </div>
     <details class="tracking-filters" id="orderFilters" ${filtersOpen ? "open" : ""} data-tracking-controls>
@@ -5670,6 +5818,7 @@ function vOrders() {
         ${group ? `<button class="btn" id="clearOrderGroup">Clear ${esc(group)} filter</button>` : ""}
       </div>
     </details>
+    </div>
     <p id="orderResultCount" class="tracking-count" role="status"></p>
     <section class="card tracking-results" aria-label="Order results" id="orderRows"></section>
   </div>`;
@@ -5681,6 +5830,11 @@ function refreshTrackedResults() {
   let items = trackedOrders(calendar, branch).filter(item =>
     (!stage || item.order.status === stage) && (!group || item.stageGroup === group) &&
     orderSearchText(item.order, item.client).includes(query.trim().toLowerCase()));
+  for (const [key, count] of Object.entries({active: items.filter(item => item.active).length,
+      attention: items.filter(item => item.reasons.length).length, ready: items.filter(item => item.collection).length, all: items.length})) {
+    const label = $(`[data-order-count="${key}"]`);
+    if (label) label.textContent = count;
+  }
   switch (view) {
     case "active": items = items.filter(item => item.active); break;
     case "attention": items = items.filter(item => item.reasons.length).sort(trackingAttentionSort); break;
@@ -7447,6 +7601,7 @@ const ACTIONS = {
       ACTIVE_MEASURE_TAB = "lower";
       MREC = blankMeasure(id);
       go("measure");
+      $("#toast").classList.remove("on");
     });
   },
   openMeasure(id) {

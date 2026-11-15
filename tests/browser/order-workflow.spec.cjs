@@ -9,7 +9,7 @@ test('a new client completes a suit and two shirts from measurement to fitting, 
  await navigate(page,'clients');await page.locator('[data-act="newClient"]').click();
  await page.locator('#cmName').fill('Demo Workflow Patron');await page.locator('#cmSave').click();
  await navigate(page,'clients');await page.locator('#clientSearch').fill('workflow patron');
- await expect(page.locator('#clientRows .directory-card')).toHaveCount(1);
+ await expect(page.locator('#clientRows [data-client-row]')).toHaveCount(1);
  await page.getByRole('button',{name:'Demo Workflow Patron',exact:true}).click();
  await page.locator('[data-v="measure"]').click();await page.locator('#mClientSelect').click();
  await page.locator('#pickSearch').fill('workflow patron');await page.locator('#pickSearch').press('Enter');

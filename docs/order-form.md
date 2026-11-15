@@ -1,6 +1,6 @@
 # Focused order entry
 
-Implemented on `codex/order-form-simplification`, following the UI roadmap's recommendation to simplify the order editor after the tracking screens. The starting release is PR #8 (`3d70ca9`). This increment is local and has not been published.
+Implemented on `codex/order-form-simplification`, following the UI roadmap's recommendation to simplify the order editor after the tracking screens. The starting release is PR #8 (`3d70ca9`). Published through PR #9 (`158ef0c`), with 12 additional live demo checks passing.
 
 ## Behavior
 
