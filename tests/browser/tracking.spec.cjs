@@ -23,7 +23,18 @@ test('Today drilldowns reconcile and open an order without writing data', async 
     await card.click();
     await expect(page.locator('#orderResultCount')).toHaveText(count + (view === 'fittings' ? ' events' : ' orders'));
     expect(await noOverflow()).toBe(true);
-    if (view === 'active') await page.screenshot({path:testInfo.outputPath('orders.png'), fullPage:true});
+    if (view === 'active') {
+      for (const key of ['attention','ready','all','active']) {
+        const count = await page.locator('[data-order-count="' + key + '"]').textContent();
+        await page.locator('[data-order-view="' + key + '"]').click();
+        await expect(page.locator('#orderResultCount')).toHaveText(count + ' orders');
+      }
+      await page.locator('#orderSearch').fill('no matching client');
+      await expect(page.locator('[data-order-count="active"]')).toHaveText('0');
+      await expect(page.locator('#orderResultCount')).toHaveText('0 orders');
+      await page.locator('#orderSearch').fill('');
+      await page.screenshot({path:testInfo.outputPath('orders.png'), fullPage:true});
+    }
     await page.locator('[data-v="dashboard"]').click();
   }
   await page.locator('#todayBranch').selectOption('London');

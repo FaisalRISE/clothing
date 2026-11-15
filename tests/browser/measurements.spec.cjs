@@ -1,6 +1,49 @@
 const { test, expect } = require('@playwright/test');
 const { navigate } = require('../navigate.cjs');
 
+test('saved measurements stay open and a visible new-measurements action starts a separate blank docket', async ({page}, testInfo) => {
+  await page.goto('/?demo=1');
+  await navigate(page, 'measure');
+  await page.locator('#mViewMode').selectOption('tabs');
+  await page.locator('[data-m="Inseam"]').fill('28.75');
+  await expect(page.locator('#measureRecordState')).toHaveText('Unsaved changes');
+  await page.locator('#abSave').click();
+  await expect(page.locator('#measureRecordState')).toHaveText('Saved docket');
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('28.75');
+  const before = await page.evaluate(() => ({id:MREC.id, clientId:MREC.clientId, data:JSON.parse(JSON.stringify(DB))}));
+  await expect(page.locator('#abNewMeasure')).toBeVisible();
+  await page.locator('#abNewMeasure').click();
+  await expect(page.locator('#modal')).toContainText('Start a blank docket');
+  await page.locator('#newMeasureSameClient').click();
+  await expect(page.locator('#measureRecordState')).toHaveText('New draft');
+  const fresh = await page.evaluate(() => JSON.parse(JSON.stringify(MREC)));
+  expect(fresh.id).not.toBe(before.id);expect(fresh.clientId).toBe(before.clientId);
+  expect(fresh.measures).toEqual({});expect(fresh.texts).toEqual({});expect(fresh.swatchCode).toBe('');expect(fresh.notes).toBe('');
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('');
+  expect(await page.evaluate(() => JSON.parse(JSON.stringify(DB)))).toEqual(before.data);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({path:testInfo.outputPath('new-measurements.png'),fullPage:false});
+  await page.locator('[data-m="Inseam"]').fill('31.25');
+  await page.locator('#abNewMeasure').click();await page.locator('#newMeasureSameClient').click();
+  await expect(page.locator('#overlay')).toContainText('Unsaved measurements');
+  await page.locator('#cdCancel').click();
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('31.25');
+  await page.locator('#abSave').click();
+  const saved = await page.evaluate(() => JSON.parse(JSON.stringify(DB)));
+  expect(saved.measurements[before.id]).toEqual(before.data.measurements[before.id]);
+  expect(saved.measurements[fresh.id].measures.Inseam).toBe('31.25');
+  expect(Object.keys(saved.measurements)).toHaveLength(Object.keys(before.data.measurements).length + 1);
+  expect(saved.orders).toEqual(before.data.orders);
+  const other = Object.values(saved.clients).find(client => client.id !== before.clientId);
+  await page.locator('#abNewMeasure').click();
+  await page.locator('#pickSearch').fill(other.name);await page.locator('#pickSearch').press('Enter');
+  expect(await page.evaluate(() => MREC.clientId)).toBe(other.id);
+  await expect(page.locator('[data-m="Inseam"]')).toHaveValue('');
+  expect(await page.evaluate(() => JSON.parse(JSON.stringify(DB)))).toEqual(saved);
+  await page.reload();
+  expect(await page.evaluate(() => JSON.parse(JSON.stringify(DB.measurements)))).toEqual(saved.measurements);
+});
+
 test('measurement entry, scoped save, units, sections, scrolling and on-demand A4 preview', async ({page}, testInfo) => {
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));

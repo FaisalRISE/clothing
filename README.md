@@ -37,3 +37,5 @@ Read [the sample-order workflow check](docs/workflow-check.md) for the client â†
 Read [the UI simplification roadmap](docs/ui-simplification-roadmap.md) for the review and implementation history. Today and Orders lead to contextual order sections, and Workshop shows garment and legacy order assignments separately. Clients and Fabrics use searchable directories, and mobile navigation keeps Today, Orders and Measure in view.
 
 Read [the focused order-entry guide](docs/order-form.md) for the follow-up form simplification, preservation checks and release boundaries.
+
+In Measurements, **Save measurements** updates the open docket and keeps it available for review or printing. **+ New measurements** starts a separate blank docket for the current client or another client found through search. It preserves saved records and asks before discarding unsaved changes. **Copy previous** is a separate action in More actions.
