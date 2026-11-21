@@ -25,7 +25,7 @@ async function start({port=4188,dataDir=path.join(root,'.local','shared-staging'
    res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'");
    if(!url.pathname.startsWith('/api/')) {
     if(req.method!=='GET')throw fail('Method not allowed.',405);
-    const files={'/':'index.html','/index.html':'index.html','/shared-client.js':'shared/client.js','/shared-data.js':'shared/data.cjs'};
+    const files={'/shared/payments.js':'shared/payments.js','/':'index.html','/index.html':'index.html','/shared-client.js':'shared/client.js','/shared-data.js':'shared/data.cjs'};
     if(!files[url.pathname])throw fail('Not found.',404);
     let body=fs.readFileSync(path.join(root,files[url.pathname]),'utf8');
     if(url.pathname==='/'||url.pathname==='/index.html')body=body.replace('<script>','<script src="/shared-data.js"></script><script src="/shared-client.js"></script>\n<script>');

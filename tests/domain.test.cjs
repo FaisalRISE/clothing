@@ -17,7 +17,7 @@ function app(initial = {}, search = '') {
   const storage = new Map(Object.entries(initial));
   const status = { textContent: '' };
   const context = vm.createContext({
-    URLSearchParams, location: { search }, console: { error() {} },
+    ModistoPayments: require('../shared/payments.js'), Intl, URLSearchParams, location: { search }, console: { error() {} },
     localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k,v) => storage.set(k,v) },
     document: {}, toast() {}, $: () => status, pushToSheets: async () => false,
     makeOrderNo: () => '#TEST-NEW',

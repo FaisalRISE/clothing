@@ -84,6 +84,10 @@ function validateChange(before,after,collection) {
   inspect(after);
   if(collection==='metadata'&&after&&Object.keys(after).some(key=>[...COLLECTIONS,'settings'].includes(key)))throw new Error('Metadata cannot replace a record collection.');
   if(collection==='measurementVersions' && before && canonical(before)!==canonical(after))throw new Error('Saved measurement copies are immutable.');
+  if(collection==='orders') {
+    const payments = typeof module !== 'undefined' ? require('./payments.js') : globalThis.ModistoPayments;
+    payments.validate(before,after);
+  }
   if(collection!=='orders' || !before?.garmentJobs?.length)return;
   if(!after)throw new Error('Orders with saved garments cannot be deleted.');
   prefix(before.garmentRevisions || [],after.garmentRevisions || [],'Order amendment');

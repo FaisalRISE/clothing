@@ -58,6 +58,9 @@ test('measurement entry, scoped save, units, sections, scrolling and on-demand A
   await input.fill('29.25');
   await input.press('Tab');
   await input.focus();
+  await expect(page.locator('[data-step="0.25"]')).toBeHidden();
+  await page.locator('#precisionHelper > summary').focus();
+  await page.keyboard.press('Enter');
   await page.locator('[data-step="0.25"]').click();
   await expect(input).toHaveValue('29.5');
   await page.locator('#mUnit').selectOption('cm');
@@ -67,6 +70,7 @@ test('measurement entry, scoped save, units, sections, scrolling and on-demand A
   await page.locator('#mUnit').selectOption('in');
   await expect(page.locator('[data-m="Inseam"]')).toHaveValue('29.5');
   await page.locator('#mNotes').fill('Regression: preserve quarter-inch posture notes.');
+  await expect(page.locator('#precisionHelper')).not.toBeInViewport();
   await page.locator('#abSave').click();
   await expect(page.locator('#status')).toContainText('Saved locally');
   await page.locator('#mNotes').press('End');
