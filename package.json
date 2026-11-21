@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "start": "node scripts/serve.cjs",
-    "test": "node --test tests/domain.test.cjs",
+    "test": "node --test tests/domain.test.cjs tests/payments.test.cjs",
     "test:browser": "playwright test",
     "shared:start": "node server/shared-server.cjs",
     "shared:contract": "node scripts/build-staging-contract.cjs",

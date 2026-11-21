@@ -29,6 +29,7 @@ test('local shared server: authentication, isolation, atomic saves and recovery'
  });
  await t.test('backup import is previewed, preserves unknown metadata and blocks conflicting IDs',async()=>{
   original=fixture();
+  original.orders.o_3=require('../../shared/payments.js').append(original.orders.o_3,{kind:'receipt',date:'2026-11-21',amount:'10.25',note:'PRIVATE-PAYMENT-REFERENCE'},'private-payment','2026-11-21T12:00:00.000Z');
   const plan=await call('/api/import/preview',{database:original},owner);assert.equal(plan.status,200);assert.deepEqual(plan.body.conflicts,[]);
   const result=await call('/api/import/commit',{database:original,digest:plan.body.digest},owner);assert.equal(result.status,200);
   assert.deepEqual(result.body.database.orders,original.orders);
@@ -44,6 +45,7 @@ test('local shared server: authentication, isolation, atomic saves and recovery'
  await t.test('workshop receives assigned job projections only; RLS denies raw records and user rows',async()=>{
   const result=await call('/api/snapshot',undefined,workshop);assert.equal(result.status,200);assert.equal(result.body.jobs.length,2);
   const text=JSON.stringify(result.body);assert.ok(!text.includes('PRIVATE-CONTACT'));assert.ok(!text.includes('135791'));assert.ok(!text.includes('advancePaid'));assert.ok(!('database' in result.body));
+  assert.ok(!text.includes('PRIVATE-PAYMENT'));assert.ok(!text.includes('paymentLedger'));
   const raw=await app.store.db.transaction(async tx=>{
    await tx.query("select set_config('modisto.actor_id',$1,true)",[workshop.user.id]);await tx.exec('set local role modisto_staff');
    return (await tx.query('select * from modisto.records')).rows;
@@ -68,6 +70,14 @@ test('local shared server: authentication, isolation, atomic saves and recovery'
   const version=Object.keys(latest.database.measurementVersions)[0];
   assert.equal((await call('/api/commit',{changes:[{collection:'measurementVersions',id:version,payload:{...latest.database.measurementVersions[version],snapshot:{}},expectedVersion:latest.versions['measurementVersions/'+version]}]},office)).status,400);
  });
+ await t.test('office cannot rewrite payment history, change its currency or spoof the received total',async()=>{
+  const before=(await call('/api/snapshot',undefined,office)).body;
+  for(const alter of [o=>{o.currency='GBP'},o=>{o.advancePaid=0},o=>{o.paymentLedger.entries=[]},o=>{o.paymentLedger.openingMinor=0}]) {
+   const order=D.clone(before.database.orders.o_3);alter(order);
+   assert.equal((await call('/api/commit',{changes:[{collection:'orders',id:'o_3',payload:order,expectedVersion:before.versions['orders/o_3']}]},office)).status,400);
+  }
+  assert.deepEqual((await call('/api/snapshot',undefined,office)).body.database.orders.o_3,before.database.orders.o_3);
+ });
  await t.test('workshop progress preserves money/history and rejects unassigned jobs and delivery',async()=>{
   const initial=(await call('/api/snapshot',undefined,workshop)).body.jobs[0];
   const input=D.clone(initial.job);input.status='Cutting';input.workflow[3].done=true;input.workflow[3].doneDate='2026-11-08';input.workflow[3].notes='Pattern reviewed';
@@ -76,6 +86,7 @@ test('local shared server: authentication, isolation, atomic saves and recovery'
   const result=await call('/api/workshop/job',{id:initial.id,job:input,expectedVersion:initial.orderVersion},workshop);assert.equal(result.status,200);
   assert.ok(!JSON.stringify(result.body).includes('advancePaid'));
   const order=(await call('/api/snapshot',undefined,owner)).body.database.orders.o_3;
+  assert.deepEqual(order.paymentLedger,original.orders.o_3.paymentLedger);
   assert.equal(order.amount,original.orders.o_3.amount);assert.equal(order.advancePaid,original.orders.o_3.advancePaid);
   assert.deepEqual(order.workflow,original.orders.o_3.workflow);
   const job=order.garmentJobs.find(job=>job.id===initial.id);assert.equal(job.workflow[3].done,true);assert.equal(job.workflow[0].done,false);assert.equal(job.history.at(-1).kind,'Workshop update');

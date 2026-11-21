@@ -59,10 +59,10 @@ test('cost review opens directly, supports keyboard closing and remains usable w
   const before = await page.evaluate(() => localStorage.getItem(DB_KEY));
   await opener.click();
   await expect(page.locator('#omCostsSummary')).toBeFocused();
-  await expect(page.getByLabel('Recorded received total (₹)', {exact:true})).toBeVisible();
+  await expect(page.getByLabel('Recorded received total', {exact:true})).toBeVisible();
   await expect(page.locator('#omRate')).toBeHidden();
   await page.locator('#omCostBreakdown > summary').click();
-  await expect(page.getByLabel('Cloth Cost / Meter (₹)', {exact:true})).toBeVisible();
+  await expect(page.getByLabel('Cloth Cost / Meter', {exact:true})).toBeVisible();
   await page.addStyleTag({content:'.order-form :is(label, input, select, textarea, button, summary, p, small, span) {font-size: 24px !important;}'});
   expect(await page.locator('#modal').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
   await page.locator('#omSave').scrollIntoViewIfNeeded();

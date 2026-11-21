@@ -26,7 +26,7 @@ test('a new client completes a suit and two shirts from measurement to fitting, 
  for(const id of ['omAmount','omAdvance','omMeters','omRate','omTrialDate','omDeliver'])await expect(page.locator('#'+id)).toHaveValue('');
  await expect(page.locator('#liveCostSummary')).toContainText('Balance Due: Unrecorded');
  await expect(page.locator('#liveCostSummary')).toContainText('Timing not recorded');
- await expect(page.getByLabel('Recorded received total (₹)',{exact:true})).toHaveValue('');
+ await expect(page.getByLabel('Recorded received total',{exact:true})).toHaveValue('');
  await page.locator('#omGarments').fill('1× 2-Piece Bespoke Suit + 2× Bespoke Shirt');
  await page.locator('#omCostsSummary').click();
  await page.locator('#omAmount').fill('50000');await page.locator('#omAdvance').fill('20000');

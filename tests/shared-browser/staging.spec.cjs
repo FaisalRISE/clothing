@@ -18,6 +18,19 @@ async function seed(context){
 async function makeContext(browser,testInfo){const {viewport,isMobile,hasTouch}=testInfo.project.use;return browser.newContext({viewport,isMobile,hasTouch});}
 async function snapshot(context){return (await context.request.get(origin+'/api/snapshot')).json();}
 
+test('dated payments are acknowledged by shared staging and survive reload without changing garment history',async({page,context})=>{
+ const {data}=await seed(context);
+ await page.goto(origin);await expect(page.locator('#sharedStaff')).toBeVisible();
+ await page.evaluate(()=>paymentModal('o_3'));
+ await page.locator('#pmAmount').fill('100.25');await page.locator('#pmDate').fill('2026-11-21');await page.locator('#pmNote').fill('Shared receipt reference');
+ await page.locator('#pmSave').click();await expect(page.getByText('Payment recorded in shared staging',{exact:true})).toBeVisible();
+ const order=(await snapshot(context)).database.orders.o_3;
+ expect(order.advancePaid).toBe(data.orders.o_3.advancePaid+100.25);expect(order.paymentLedger.entries).toHaveLength(1);
+ expect(order.garmentJobs).toEqual(data.orders.o_3.garmentJobs);expect(order.workflow).toEqual(data.orders.o_3.workflow);
+ await page.reload();await expect(page.locator('#sharedStaff')).toBeVisible();await page.evaluate(()=>paymentModal('o_3'));
+ await expect(page.locator('#overlay')).toContainText('Shared receipt reference');
+});
+
 test('owner setup/import, two office sessions and an assigned workshop job share acknowledged saves',async({page,context,browser},testInfo)=>{
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.addInitScript(()=>localStorage.setItem('modisto_bespoke_v7','untouched-browser-records'));

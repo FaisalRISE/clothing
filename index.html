@@ -488,10 +488,7 @@ tr.rowlink:hover { background: #faf7f0; }
 
 /* Quarter-inch helper bar */
 .fraction-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  display: block;
   background: var(--navy);
   color: #e5e7eb;
   padding: 7px 14px;
@@ -499,6 +496,8 @@ tr.rowlink:hover { background: #faf7f0; }
   margin-bottom: 12px;
   font-size: 12px;
 }
+.fraction-bar > summary { cursor: pointer; padding: 5px 0; font-weight: 600; color: var(--gold-soft); }
+.fraction-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 8px; }
 .fraction-bar .fbtn {
   background: rgba(255,255,255,.1);
   border: 1px solid rgba(201,176,131,.35);
@@ -1507,7 +1506,7 @@ tr.rowlink:hover { background: #faf7f0; }
 @media (prefers-reduced-motion: reduce) { .orders-workspace .tracking-order { transition: none; } }
 #abCreateOrder[hidden] { display: none; }
 .panel { scroll-margin-top: 96px; }
-.fraction-bar { position: sticky; top: 0; z-index: 20; }
+.fraction-bar { position: static; }
 .fraction-bar .fbtn:disabled { opacity: .45; cursor: default; }
 .measurement-menu { position: relative; }
 .measurement-menu > div { position: absolute; bottom: 48px; right: 0; min-width: 190px; padding: 10px; background: white; border: 1px solid var(--line); box-shadow: var(--shadow); display: grid; gap: 8px; }
@@ -1652,6 +1651,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<script src="shared/payments.js"></script>
 <script>
 /* ============================================================================
    MODISTO BESPOKE — ATELIER CRM, MEASUREMENT DOCKET, TEAM TIMELINE, SWATCHES & COSTING
@@ -2101,9 +2101,16 @@ function summarizeTrackedOrder(order, client, today, through) {
   };
 }
 
+function defaultOrderCurrency(client) {
+  return String(client?.branch || "").startsWith("London") ? "GBP" : "INR";
+}
+function formatOrderMoney(order, value) {
+  const code = ModistoPayments.currency(order);
+  return code ? new Intl.NumberFormat(code === "INR" ? "en-IN" : "en-GB", {style:"currency",currency:code,maximumFractionDigits:2,minimumFractionDigits:0}).format(value) : Number(value).toLocaleString("en-GB") + " (currency unconfirmed)";
+}
 function recordedOrderPayments(order) {
   const value = raw => raw == null || String(raw).trim() === "" || !Number.isFinite(Number(raw)) || Number(raw) < 0 ? null : Number(raw);
-  const quoted = value(order.amount), received = value(order.advancePaid);
+  const quoted = value(order.amount), received = order.paymentLedger ? ModistoPayments.total(order.paymentLedger)/100 : value(order.advancePaid);
   const known = quoted !== null && received !== null;
   return {quoted,received,balance:known ? Math.max(0,quoted-received) : null,excess:known ? Math.max(0,received-quoted) : null};
 }
@@ -2144,7 +2151,7 @@ function reviseGarmentCancellation(job, reason, reinstate = false) {
 }
 
 const ORDER_COMMERCIAL_FIELDS = {
-  amount:"Order quote", advancePaid:"Recorded received total", fabricMeters:"Fabric metres used for costing",
+  currency:"Order currency", amount:"Order quote", advancePaid:"Recorded received total", fabricMeters:"Fabric metres used for costing",
   reservedFabricMeters:"Fabric reservation metres",
   fabricRate:"Fabric rate", trimsCost:"Trims cost", cutterCost:"Cutter cost", karigarCost:"Maker cost",
   trialShippingCost:"Trial / shipping cost", swatchCode:"Order fabric swatch", fabric:"Fabric description", liningCode:"Lining code"
@@ -2159,7 +2166,7 @@ function reviewOrderCommercials(before, after, reason, confirmed = false) {
   if (!before.garmentJobs?.length) return after;
   const changes = {};
   for (const field of Object.keys(ORDER_COMMERCIAL_FIELDS)) {
-    const numeric = !["swatchCode","fabric","liningCode"].includes(field);
+    const numeric = !["currency","swatchCode","fabric","liningCode"].includes(field);
     const normalize = value => value == null || value === "" ? null : numeric ? Number(value) : String(value);
     const previous = field === "reservedFabricMeters" ? orderFabricReservation(before) : normalize(before[field]);
     const next = field === "reservedFabricMeters" ? orderFabricReservation(after) : normalize(after[field]);
@@ -2686,6 +2693,7 @@ function getSeedData() {
     orders: {
       "o_1": {
         id: "o_1",
+        currency: "INR",
         clientId: "c_demo_1",
         orderNo: "#DEMO-001",
         date: "2026-10-12",
@@ -2715,6 +2723,7 @@ function getSeedData() {
       },
       "o_2": {
         id: "o_2",
+        currency: "INR",
         clientId: "c_demo_2",
         orderNo: "#DEMO-002",
         date: "2026-10-18",
@@ -2744,6 +2753,7 @@ function getSeedData() {
       },
       "o_3": {
         id: "o_3",
+        currency: "INR",
         clientId: "c_demo_3",
         orderNo: "#DEMO-003",
         date: "2026-10-05",
@@ -2773,6 +2783,7 @@ function getSeedData() {
       },
       "o_4": {
         id: "o_4",
+        currency: "INR",
         clientId: "c_demo_4",
         orderNo: "#DEMO-004",
         date: "2026-10-22",
@@ -3147,7 +3158,7 @@ function calcOrderEconomics(o) {
   const shipping = parseFloat(o.trialShippingCost) || 0;
   const totalCost = fabricTotal + trims + cutter + karigar + shipping;
   const quoted = parseFloat(o.amount) || 0;
-  const advance = parseFloat(o.advancePaid) || 0;
+  const advance = recordedOrderPayments(o).received || 0;
   const balance = Math.max(0, quoted - advance);
   const profit = quoted - totalCost;
   const marginPct = quoted > 0 ? ((profit / quoted) * 100) : 0;
@@ -4202,8 +4213,9 @@ function vMeasure() {
 
   </div>
   <!-- QUARTER-INCH PRECISION HELPER BAR -->
-  <div class="fraction-bar no-print">
-    <span style="font-weight:600;color:var(--gold-soft);">📏 Quarter-Inch Precision Helper:</span>
+  <details class="fraction-bar no-print" id="precisionHelper">
+    <summary>Quarter-inch helper</summary>
+    <div class="fraction-controls">
     <span id="focusedFieldLabel" style="color:#cbd5e1;">Click any measurement box, then tap a fraction:</span>
     <button type="button" class="fbtn" data-frac=".0">Whole (.0)</button>
     <button type="button" class="fbtn" data-frac=".25">¼" (.25)</button>
@@ -4213,7 +4225,8 @@ function vMeasure() {
     <button type="button" class="fbtn" data-step="-0.25">− 0.25"</button>
     <button type="button" class="fbtn" data-step="0.25">+ 0.25"</button>
     <span style="margin-left:auto;font-size:11.5px;color:#94a3b8;">Accepts 29.25, 29.5, 29.75 directly via keyboard</span>
-  </div>
+    </div>
+  </details>
 
   <!-- SECTION TABS -->
   <div class="measurement-view no-print">
@@ -5206,6 +5219,7 @@ function flatOrder(o) {
   const c = DB.clients[o.clientId];
   const ec = calcOrderEconomics(o);
   return {
+    "Currency": ModistoPayments.currency(o) || "Unconfirmed",
     "Order No": o.orderNo,
     "Client": c ? c.name : "",
     "Date": o.date,
@@ -5335,9 +5349,91 @@ function editTrackedFitting(orderId, jobId, addFitting) {
   garmentJobModal(jobId, {addFitting});
 }
 
+function paymentModal(orderId) {
+  try { DB = latestStoredDatabase(); }
+  catch (error) { toast("Could not load payments. " + error.message); return; }
+  const order = DB.orders[orderId];
+  if (!order) return;
+  const code = ModistoPayments.currency(order);
+  const ledger = order.paymentLedger;
+  const entries = ledger?.entries || [];
+  const reversed = new Set(entries.filter(entry => entry.kind === "reversal").map(entry => entry.reverses));
+  const openingKnown = order.advancePaid != null && String(order.advancePaid).trim() !== "";
+  openModal(`<div class="order-form">
+    <h2>Payments · ${esc(order.orderNo)}</h2>
+    <p>${esc(orderReceivedSummary(order))}</p>
+    ${!code ? `<p>Review and confirm the currency of the existing quote, receipts and costs before adding payments. Amounts will not be converted.</p><button class="btn primary" id="pmCurrency">Review order currency</button>` : `
+      <p>Record money already received or refunded. This does not send or collect money.</p>
+      ${!ledger ? `<div class="field"><label for="pmOpening">Previously received · ${code} (undated opening balance)</label>
+        <input id="pmOpening" inputmode="decimal" value="${esc(order.advancePaid ?? "")}" ${openingKnown ? "readonly" : ""}>
+        <small>${openingKnown ? "The saved received total will be carried forward unchanged." : "Check earlier receipts and enter their net total, or 0 if none. Blank is not zero."} No historical transaction dates are invented.</small></div>` : ""}
+      <div class="grid2">
+        <div class="field"><label for="pmKind">Entry type</label><select id="pmKind"><option value="receipt">Receipt</option><option value="refund">Refund</option></select></div>
+        <div class="field"><label for="pmAmount">Amount · ${code}</label><input id="pmAmount" inputmode="decimal" placeholder="0.00"></div>
+        <div class="field"><label for="pmDate">Transaction date</label><input id="pmDate" type="date"></div>
+        <div class="field"><label for="pmNote">Reference / note</label><input id="pmNote" placeholder="Receipt reference, method or correction reason"></div>
+      </div>
+      <p id="pmError" role="alert"></p>
+      <button class="btn primary" id="pmSave">Record payment</button>
+      <button class="btn" id="pmReset" hidden>Cancel reversal</button>
+    `}
+    <details ${entries.length ? "open" : ""}><summary>Payment history (${entries.length} dated entries)</summary>
+      <p>${ledger ? "Opening received balance: " + esc(formatOrderMoney(order,ledger.openingMinor/100)) + " · undated. Tracking started " + esc(new Date(ledger.startedAt).toLocaleString()) : "Dated tracking has not started."}</p>
+      ${entries.map(entry => `<article class="card" style="margin:12px 0;padding:16px;overflow-wrap:anywhere;">
+        <b>${esc(entry.kind)} · ${esc(formatOrderMoney(order,entry.amountMinor/100))}</b>
+        <p>${esc(fmtDate(entry.date))} · ${esc(entry.note)}</p>
+        <small>Recorded ${esc(new Date(entry.recordedAt).toLocaleString())}${reversed.has(entry.id) ? " · Reversed" : ""}</small>
+        ${entry.kind !== "reversal" && !reversed.has(entry.id) ? `<button class="btn" data-reverse-payment="${esc(entry.id)}">Reverse entry</button>` : ""}
+      </article>`).join("")}
+    </details>
+    <div class="actions"><button class="btn" id="pmClose">Close</button></div>
+  </div>`);
+  $("#pmClose").onclick = closeModal;
+  if (!code) { $("#pmCurrency").onclick = () => orderModal(order,order.clientId,null,"costs"); return; }
+  let reversing = null, saving = false;
+  $("#pmReset").onclick = () => paymentModal(orderId);
+  document.querySelectorAll("[data-reverse-payment]").forEach(button => {
+    button.onclick = () => {
+      reversing = entries.find(entry => entry.id === button.dataset.reversePayment);
+      $("#pmKind").innerHTML = '<option value="reversal">Reversal (correction)</option>';
+      $("#pmKind").disabled = true;
+      $("#pmAmount").value = Math.abs(reversing.amountMinor)/100;
+      $("#pmAmount").readOnly = true;
+      $("#pmNote").value = "";
+      $("#pmSave").textContent = "Record reversal";
+      $("#pmReset").hidden = false;
+      $("#pmDate").focus();
+    };
+  });
+  $("#pmSave").onclick = async () => {
+    if (saving) return;
+    saving = true;
+    $("#pmSave").disabled = true;
+    try {
+      const latest = latestStoredDatabase();
+      if (JSON.stringify(latest.orders[orderId]) !== JSON.stringify(order)) throw new Error("This order changed. Close and reopen Payments before saving.");
+      const updated = ModistoPayments.append(order, {
+        opening:$("#pmOpening")?.value,kind:$("#pmKind").value,amount:$("#pmAmount").value,
+        date:$("#pmDate").value,note:$("#pmNote").value,reverses:reversing?.id
+      },uid("payment"),new Date().toISOString());
+      ModistoPayments.validate(order,updated);
+      const next = {...latest,orders:{...latest.orders,[orderId]:updated}};
+      await writeDatabase(next);
+      DB = next;
+      render();
+      paymentModal(orderId);
+      toast(SHARED_MODE ? "Payment recorded in shared staging" : "Payment recorded locally");
+    } catch (error) {
+      $("#pmError").textContent = error.message;
+      $("#pmError").scrollIntoView({block:"nearest"});
+      $("#pmSave").disabled = false;
+    } finally { saving = false; }
+  };
+}
+
 function orderReceivedSummary(order) {
   const {quoted, received, balance, excess} = recordedOrderPayments(order);
-  const amount = value => value === null ? "Unrecorded" : fmtINR(value);
+  const amount = value => value === null ? "Unrecorded" : formatOrderMoney(order,value);
   return `Order quote ${amount(quoted)} · Received total ${amount(received)} · Balance due ${amount(balance)}${excess > 0 ? " · Excess received " + amount(excess) : ""}`;
 }
 
@@ -5899,6 +5995,7 @@ function orderOverviewContent(item, section) {
   if (section === "costs") return `<section class="card tracking-panel">
     <h2>Costs &amp; received</h2>
     <p>${esc(orderReceivedSummary(order))}</p>
+    <button class="btn primary" data-act="recordPayment" data-id="${esc(order.id)}">Payments &amp; history</button>
     ${order.commercialReviewRequired ? '<p role="status"><b>Fabric / payment review pending.</b></p>' : ""}
     <button class="btn" data-act="reviewOrderCosts" data-id="${esc(order.id)}">Review fabric &amp; payments</button>
   </section>`;
@@ -6113,7 +6210,9 @@ function vSwatches() {
    6. COSTING & PROFITABILITY ENGINE VIEW
    ============================================================================ */
 function vCosting() {
-  const orders = Object.values(DB.orders);
+  const selectedCurrency = VIEW.currency || "INR";
+  const orders = Object.values(DB.orders).filter(order => (ModistoPayments.currency(order) || "unconfirmed") === selectedCurrency);
+  const money = value => formatOrderMoney({currency:selectedCurrency},value);
   let totRev = 0, totFabric = 0, totTrims = 0, totLabour = 0, totShip = 0, totCost = 0, totProfit = 0, totHours = 0;
 
   orders.forEach(o => {
@@ -6142,34 +6241,36 @@ function vCosting() {
     <button class="btn primary" data-act="newOrderPick">＋ Log New Order Costing</button>
   </div>
 
+  <div class="card"><p>Reports show one currency at a time. Unconfirmed records are listed separately and never included in INR or GBP totals.</p><div class="actions">${["INR","GBP","unconfirmed"].map(code => `<button class="btn ${code === selectedCurrency ? "primary" : ""}" data-act="reportCurrency" data-id="${code}" aria-pressed="${code === selectedCurrency}">${code === "unconfirmed" ? "Currency unconfirmed" : code} · ${Object.values(DB.orders).filter(order => (ModistoPayments.currency(order) || "unconfirmed") === code).length}</button>`).join("")}</div></div>
+  ${selectedCurrency === "unconfirmed" ? "<p>Confirm each order currency before including these records in totals.</p>" : `
   <div class="stats">
     <div class="stat">
-      <div class="num">${fmtINR(totRev)}</div>
+      <div class="num">${money(totRev)}</div>
       <div class="lbl">Total quoted value</div>
       <div class="sub">Across ${orders.length} bespoke orders</div>
     </div>
     <div class="stat">
-      <div class="num">${fmtINR(totFabric + totTrims)}</div>
+      <div class="num">${money(totFabric + totTrims)}</div>
       <div class="lbl">Material &amp; Trims Cost</div>
-      <div class="sub">Fabric: ${fmtINR(totFabric)} · Trims: ${fmtINR(totTrims)}</div>
+      <div class="sub">Fabric: ${money(totFabric)} · Trims: ${money(totTrims)}</div>
     </div>
     <div class="stat">
-      <div class="num">${fmtINR(totLabour)}</div>
+      <div class="num">${money(totLabour)}</div>
       <div class="lbl">Cutter &amp; Karigar Labour</div>
       <div class="sub">${totHours} total bespoke craft hours</div>
     </div>
     <div class="stat green">
-      <div class="num">${fmtINR(totProfit)}</div>
+      <div class="num">${money(totProfit)}</div>
       <div class="lbl">Estimated order contribution</div>
       <div class="sub">${overallMargin}% Gross Margin</div>
     </div>
     <div class="stat gold">
-      <div class="num">${fmtINR(avgProfitPerHr)}/hr</div>
+      <div class="num">${money(avgProfitPerHr)}/hr</div>
       <div class="lbl">Contribution per recorded hour</div>
       <div class="sub">Measures time-vs-return efficiency</div>
     </div>
   </div>
-
+  `}
   <div class="card">
     <div class="card-title">
       <span>📊 ORDER-BY-ORDER COST BREAKDOWN &amp; TIME RETURN</span>
@@ -6204,26 +6305,26 @@ function vCosting() {
                 <div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px;">${esc(o.garments)}</div>
               </td>
               <td>
-                <b>${fmtINR(ec.fabricTotal)}</b>
-                <div style="font-size:11px;color:var(--ink-soft);">${esc(o.fabricMeters || 0)}m × ${fmtINR(o.fabricRate || 0)}</div>
+                <b>${money(ec.fabricTotal)}</b>
+                <div style="font-size:11px;color:var(--ink-soft);">${esc(o.fabricMeters || 0)}m × ${money(o.fabricRate || 0)}</div>
               </td>
               <td>
-                <b>${fmtINR(ec.cutter + ec.karigar)}</b>
-                <div style="font-size:11px;color:var(--ink-soft);">Cut: ${fmtINR(ec.cutter)} · Stitch: ${fmtINR(ec.karigar)}</div>
+                <b>${money(ec.cutter + ec.karigar)}</b>
+                <div style="font-size:11px;color:var(--ink-soft);">Cut: ${money(ec.cutter)} · Stitch: ${money(ec.karigar)}</div>
               </td>
               <td>
-                <b>${fmtINR(ec.trims + ec.shipping)}</b>
+                <b>${money(ec.trims + ec.shipping)}</b>
                 <div style="font-size:11px;color:var(--ink-soft);">Canvas/Buttons + Trial</div>
               </td>
-              <td style="font-weight:700;color:var(--navy);">${fmtINR(ec.totalCost)}</td>
-              <td style="font-weight:700;">${fmtINR(ec.quoted)}</td>
+              <td style="font-weight:700;color:var(--navy);">${money(ec.totalCost)}</td>
+              <td style="font-weight:700;">${money(ec.quoted)}</td>
               <td>
-                <b style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};">${fmtINR(ec.profit)}</b>
+                <b style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};">${money(ec.profit)}</b>
                 <div><span class="badge ${ec.marginPct >= 45 ? "s-Ready" : "s-Cutting"}">${ec.marginPct.toFixed(1)}% margin</span></div>
               </td>
               <td>
                 <b>${ec.hours}h</b> <span style="color:var(--ink-soft);font-size:11px;">(Est ${ec.estHours}h)</span>
-                <div style="font-size:11px;color:var(--ink-soft);">${fmtINR(ec.profitPerHr)}/hr</div>
+                <div style="font-size:11px;color:var(--ink-soft);">${money(ec.profitPerHr)}/hr</div>
               </td>
             </tr>`;
           }).join("")}
@@ -6571,6 +6672,7 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
     };
   }
   const cid = o.clientId || clientId || Object.keys(DB.clients)[0];
+  const initialCurrency = o.id ? ModistoPayments.currency(o) : defaultOrderCurrency(DB.clients[cid]);
   const allClients = Object.values(DB.clients).sort((a, b) => a.name.localeCompare(b.name));
   const allSwatches = Object.values(DB.swatches);
   const allEmployees = Object.values(DB.employees || {});
@@ -6704,38 +6806,46 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
       </details>
       <details class="order-form-section" id="omCostsSection" ${initialSection === "costs" || o.commercialReviewRequired ? "open" : ""}>
         <summary id="omCostsSummary">Costs &amp; received <span>Quote, receipts and fabric review</span></summary>
+        <div class="field"><label for="omCurrency">Order currency</label>
+          <select id="omCurrency" ${o.paymentLedger ? "disabled" : ""}>
+            <option value="" ${!initialCurrency ? "selected" : ""}>Unconfirmed — review existing amounts</option>
+            <option value="INR" ${initialCurrency === "INR" ? "selected" : ""}>INR · Indian rupee</option>
+            <option value="GBP" ${initialCurrency === "GBP" ? "selected" : ""}>GBP · Pound sterling</option>
+          </select><small>Applies to the quote, received total and all entered order costs. No exchange conversion is performed. ${o.paymentLedger ? "Currency is locked because dated payments exist." : "Verify amounts before changing currency."}</small>
+        </div>
         <div class="grid2">
           <div class="field">
-            <label for="omAmount" class="req">Client Quoted Price (₹)</label>
-            <input id="omAmount" type="number" step="500" value="${esc(o.amount ?? "")}">
+            <label for="omAmount" class="req">Client Quoted Price</label>
+            <input id="omAmount" type="number" step="0.01" value="${esc(o.amount ?? "")}">
           </div>
           <div class="field">
-            <label for="omAdvance">Recorded received total (₹)</label>
-            <input id="omAdvance" type="number" step="500" value="${esc(o.advancePaid ?? "")}">
-            <small>Enter verified cumulative receipts, including advance and final payments. Individual payment transactions are not tracked here.</small>
+            <label for="omAdvance">Recorded received total</label>
+            <input id="omAdvance" type="number" step="0.01" ${o.paymentLedger ? "readonly" : ""} value="${esc(o.advancePaid ?? "")}">
+            <small>${o.paymentLedger ? "Calculated from payment history. Record a payment or reversal to change this total." : "Previously received, without transaction dates. Save the order, then use Payments & history to record dated receipts and refunds."}</small>
           </div>
         </div>
         <details class="order-effort" id="omCostBreakdown"><summary>Recorded cost breakdown</summary>
           <div class="grid2">
             <div class="field">
-              <label for="omRate">Cloth Cost / Meter (₹)</label>
-              <input id="omRate" type="number" step="50" value="${esc(o.fabricRate ?? "")}">
+              <label for="omRate">Cloth Cost / Meter</label>
+              <small>Fabric library rates are INR. For GBP orders, enter a verified GBP cost.</small>
+              <input id="omRate" type="number" step="0.01" value="${esc(o.fabricRate ?? "")}">
             </div>
             <div class="field">
-              <label for="omTrims">Canvas, Lining &amp; Trims (₹)</label>
-              <input id="omTrims" type="number" step="100" value="${esc(o.trimsCost ?? "")}">
+              <label for="omTrims">Canvas, Lining &amp; Trims</label>
+              <input id="omTrims" type="number" step="0.01" value="${esc(o.trimsCost ?? "")}">
             </div>
             <div class="field">
-              <label for="omCutter">Master Cutter Cost (₹)</label>
-              <input id="omCutter" type="number" step="100" value="${esc(o.cutterCost ?? "")}">
+              <label for="omCutter">Master Cutter Cost</label>
+              <input id="omCutter" type="number" step="0.01" value="${esc(o.cutterCost ?? "")}">
             </div>
             <div class="field">
-              <label for="omKarigarCost">Karigar / Stitching Cost (₹)</label>
-              <input id="omKarigarCost" type="number" step="100" value="${esc(o.karigarCost ?? "")}">
+              <label for="omKarigarCost">Karigar / Stitching Cost</label>
+              <input id="omKarigarCost" type="number" step="0.01" value="${esc(o.karigarCost ?? "")}">
             </div>
             <div class="field">
-              <label for="omShip">Trial / Shipping Cost (₹)</label>
-              <input id="omShip" type="number" step="100" value="${esc(o.trialShippingCost ?? "")}">
+              <label for="omShip">Trial / Shipping Cost</label>
+              <input id="omShip" type="number" step="0.01" value="${esc(o.trialShippingCost ?? "")}">
             </div>
           </div>
         </details>
@@ -6760,7 +6870,7 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
       </details>
       <p id="omSaveError" role="alert"></p>
       <div class="actions order-form-actions">
-        ${o.id && !o.garmentJobs?.length ? `<button class="btn danger" id="omDelete" style="margin-right:auto;">Delete Order</button>` : ""}
+        ${o.id && !o.garmentJobs?.length && !o.paymentLedger ? `<button class="btn danger" id="omDelete" style="margin-right:auto;">Delete Order</button>` : ""}
         <button class="btn" id="omCancel">Cancel</button>
         <button class="btn primary" id="omSave">${o.id ? "Save order" : "Create order"}</button>
       </div>
@@ -6779,7 +6889,7 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
         const shortBy = Math.round((reqM - stockM) * 100) / 100;
         stockBox.innerHTML = `<div class="shortage-banner">
           <span><b>⚠ FABRIC SHORTAGE HIGHLIGHT (${esc(sw.code)}):</b> This order requires <b>${reqM} m</b>, but only <b>${stockM} m</b> is in stock — <b>Short by ${shortBy} m!</b></span>
-          <span>Cost of shortfall: <b>${fmtINR(shortBy * sw.costPerMeter)}</b></span>
+          <span>Fabric library shortfall cost (INR): <b>${fmtINR(shortBy * sw.costPerMeter)}</b></span>
         </div>`;
       } else {
         stockBox.innerHTML = `<div class="ok-stock-banner">
@@ -6791,6 +6901,7 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
     }
 
     const temp = {
+      currency: $("#omCurrency").value,
       fabricMeters: reqM,
       fabricRate: $("#omRate").value,
       trimsCost: $("#omTrims").value,
@@ -6806,11 +6917,11 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
     };
     const ec = calcOrderEconomics(temp);
     $("#liveCostSummary").innerHTML = `
-      <span>Cloth Cost: <b>${fmtINR(ec.fabricTotal)}</b></span>
-      <span>Total Cost: <b>${fmtINR(ec.totalCost)}</b></span>
-      <span>Estimated contribution <b style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};">${fmtINR(ec.profit)} (${ec.marginPct.toFixed(1)}%)</b></span>
+      <span>Cloth Cost: <b>${formatOrderMoney(temp,ec.fabricTotal)}</b></span>
+      <span>Total Cost: <b>${formatOrderMoney(temp,ec.totalCost)}</b></span>
+      <span>Estimated contribution <b style="color:${ec.profit >= 0 ? "var(--green)" : "var(--danger)"};">${formatOrderMoney(temp,ec.profit)} (${ec.marginPct.toFixed(1)}%)</b></span>
       <span>Time Variance: <b style="color:${ec.daysVariance > 0 ? "var(--danger)" : "var(--green)"};">${!orderTimingRecorded(temp) ? "Timing not recorded" : ec.daysVariance > 0 ? `+${ec.daysVariance}d over est` : `On time`}</b></span>
-      <span>Balance Due: <b>${recordedOrderPayments(temp).balance === null ? "Unrecorded" : fmtINR(ec.balance)}</b></span>
+      <span>Balance Due: <b>${recordedOrderPayments(temp).balance === null ? "Unrecorded" : formatOrderMoney(temp,ec.balance)}</b></span>
     `;
   };
 
@@ -6827,7 +6938,7 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
   $("#omSwatch").onchange = e => {
     const sw = getSwatchByCode(e.target.value);
     if (sw) {
-      $("#omRate").value = sw.costPerMeter;
+      if ($("#omCurrency").value === "INR") $("#omRate").value = sw.costPerMeter;
       if (!$("#omFabric").value.trim()) {
         $("#omFabric").value = `${sw.code} · ${sw.book} (${sw.colorName})`;
       }
@@ -6840,6 +6951,13 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
   });
   updateLiveCalc();
 
+  let currencyChosen = false;
+  $("#omCurrency").onchange = () => { currencyChosen = true; updateLiveCalc(); };
+  $("#omClient").addEventListener("change", () => {
+    const hasAmounts = ["omAmount","omAdvance","omRate","omTrims","omCutter","omKarigarCost","omShip"].some(id => $("#"+id).value !== "");
+    if (!o.id && !currencyChosen && !hasAmounts) $("#omCurrency").value = defaultOrderCurrency(DB.clients[$("#omClient").value]);
+    updateLiveCalc();
+  });
   if (initialSection === "costs") $("#omCostsSummary").focus();
   const showOrderError = message => {
     $("#omSaveError").textContent = message;
@@ -6874,6 +6992,7 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
     let rec = {
       ...o,
       id: o.id || uid("o"),
+      ...($("#omCurrency").value !== initialCurrency || !o.id ? {currency:$("#omCurrency").value} : {}),
       clientId: sourceDocket?.clientId || (o.measurementId || o.garmentJobs?.length ? o.clientId : $("#omClient").value),
       orderNo: $("#omNo").value.trim(),
       status: statusVal,
@@ -6902,6 +7021,10 @@ function orderModal(o, clientId, sourceDocket = null, initialSection = "details"
       notes: $("#omNotes").value.trim(),
       workflow: o.workflow
     };
+    try {
+      if (!o.id && !ModistoPayments.currency(rec)) throw new Error("Choose a currency for the new order.");
+      ModistoPayments.validate(o,rec);
+    } catch (error) { showOrderError(error.message); return; }
     // Synchronize workflow steps with the chosen Workshop Stage!
     syncOrderStageToWorkflow(rec, statusVal);
 
@@ -7333,6 +7456,7 @@ function enquiryWizardModal() {
       estDays: null, actualDays: null, estHours: null, hoursSpent: null,
       fabricMeters: null, fabricRate: null, trimsCost: null, cutterCost: null,
       karigarCost: null, trialShippingCost: null, amount: null, advancePaid: null,
+      currency: defaultOrderCurrency(DB.clients[cid]),
       estimatedFabricMeters: Math.round(estMeters * 20) / 20,
       notes: "",
       workflow: buildDefaultWorkflow(todayStr, "New", tailor, "")
@@ -7571,6 +7695,8 @@ const ACTIONS = {
   },
   newOrder(id) { orderModal(null, id); },
   newOrderPick() { orderModal(null, Object.keys(DB.clients)[0]); },
+  reportCurrency(id) { VIEW.currency = id; render(); },
+  recordPayment(id) { paymentModal(id); },
   reviewOrderCosts(id) { ACTIONS.editOrder(id, "costs"); },
   editOrder(id, initialSection = "details") {
     try {
